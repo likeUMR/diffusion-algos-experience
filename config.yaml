@@ -1,0 +1,108 @@
+# 2D Generation Models Configuration File
+
+# 1. General Training and Dataset parameters
+train:
+  epochs: 200
+  batch_size: 512
+  lr: 0.001                # 全局默认学习率
+  weight_decay: 0.00001    # 全局默认权重衰减
+  n_samples: 20000
+  noise: 0.0
+  turns: 3.0
+  plot_nodes: 10
+  save_nodes: 4
+  checkpoint_dir: "checkpoints"
+  results_dir: "results"
+
+# 2. Neural Network Model Architecture parameters
+model:
+  hidden_dim: 256
+  num_blocks: 4
+  time_emb_dim: 256
+
+# 3. Algorithm-specific Hyperparameters (基于 40.81G FLOPs 训练总算力自适应贝叶斯 HPO 搜索出的绝对极限参数)
+# 不再强制死板对齐，用各自算法最偏好的极限配置在同等总训练算力下进行真正的巅峰对决！
+algorithms:
+  ddpm:
+    epochs: 541            # 贝叶斯精配轮数 (等效 541 Epochs)
+    hidden_dim: 128        # HPO 胜出尺寸 (128宽)
+    num_blocks: 6          # HPO 胜出深度 (6残差块)
+    time_emb_dim: 128
+    num_steps: 50          # 恢复为 HPO 最佳 50 步对齐 (DDPM 训练与采样强耦合，不可盲目增加步数)
+    variance_type: "fixed_small"
+    beta_start: 0.0001
+    beta_end: 0.16         # 终点 beta 调高彻底去偏
+    lr: 0.0004363011       # 精配温和学习率，防止大深度梯度震荡
+    weight_decay: 0.00001540619 # HPO 胜出正则项，死死收拢一维窄流形
+  ddim:
+    epochs: 782            # 等效 782 Epochs 训练
+    hidden_dim: 128
+    num_blocks: 4
+    time_emb_dim: 128
+    num_steps: 100         # 训练 100 时间步长
+    sample_steps: 100      # 采样步长彻底解放，开到100步极高保真生成
+    eta: 0.0               # 完全确定性去噪
+    beta_start: 0.0001
+    beta_end: 0.16
+    lr: 0.001410701        # HPO 胜出的最佳学习率
+    weight_decay: 0.00002818631 # HPO 胜出的权重衰减，清除空间高频毛刺
+  vdm:
+    epochs: 352            # 等效 352 Epochs 训练
+    hidden_dim: 192
+    num_blocks: 4
+    time_emb_dim: 192
+    num_steps: 50          
+    gamma_min: -5.0
+    gamma_max: 5.0
+    schedule_power: 1.0
+    loss_weighting: "uniform"
+    min_snr_gamma: 5.0
+    x0_clip: 5.0
+    lr: 0.00120192         # HPO 精调学习率
+    weight_decay: 0.000004501255 # 精配权重衰减，完美保留连续变分极值表达
+  v_learning:
+    epochs: 782            # 等效 782 Epochs 训练
+    hidden_dim: 128
+    num_blocks: 4
+    time_emb_dim: 128
+    num_steps: 50          # 训练时间步长
+    sample_steps: 50       # 基于 DDIM 的确定性采样步长
+    eta: 0.0               # 完全确定性去噪，不注入额外采样噪声
+    beta_start: 0.0001
+    beta_end: 0.16
+    lr: 0.0007764587       # HPO 胜出学习率
+    weight_decay: 0.000001648553 # 精配权重衰减
+  flow_matching:
+    epochs: 782            # 等效 782 Epochs 训练
+    hidden_dim: 128
+    num_blocks: 4
+    time_emb_dim: 128
+    num_steps: 50          # 50 步欧拉积分
+    lr: 0.001013209        # HPO 胜出最佳学习率
+    weight_decay: 0.0002222946 # 强权重衰减，裁剪流形边缘，极速收拢到极窄螺线
+  consistency_models:
+    epochs: 586            # 等效 586 Epochs 训练 (CM 单 Batch 算 4 NFE，此处等效总算力完全配平)
+    hidden_dim: 128
+    num_blocks: 4
+    time_emb_dim: 128
+    num_steps: 16          # 减少离散网格，让相邻一致性训练覆盖更大的噪声跨度
+    sample_steps: 3        # 3步快速迭代纠偏积分
+    sigma_data: 0.5
+    sigma_max: 2.0         # 训练/采样共享最大噪声尺度，缓解 t=1 与纯高斯先验错配
+    epsilon: 0.002
+    ema_decay: 0.95
+    lr: 0.002689613        # 最佳在线/目标自一致性建立学习率
+    weight_decay: 0.0002115797 # HPO 精配权重衰减
+  mean_flow:
+    epochs: 640            # 等效 640 Epochs 训练
+    hidden_dim: 128
+    num_blocks: 5
+    time_emb_dim: 128
+    p: 0.5                 # 极限 Powered L2 Loss
+    c: 0.001
+    num_steps: 5           # 反向 5 步高精度多阶积分采样
+    interval_sampling: "mixed_full" # 显式混合全区间 [0,1]，匹配一步/少步采样查询
+    full_interval_prob: 0.25
+    lr: 0.0003884811       # 精配稳定低学习率
+    weight_decay: 0.000005247695 # 最佳权重衰减
+

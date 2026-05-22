@@ -1,0 +1,54 @@
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Training outputs and experiment artifacts
+results/
+results_tune/
+results_tune2/
+checkpoints/
+runs/
+logs/
+wandb/
+mlruns/
+
+# Model weights and large generated data
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.npz
+*.npy
+
+# Generated media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# OS files
+.DS_Store
+Thumbs.db
