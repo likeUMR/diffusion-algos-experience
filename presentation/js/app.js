@@ -515,9 +515,9 @@ function getFinalMetricValue(runData, metric) {
 function inferPointRadius(pointCount, options = {}) {
   const {
     referenceCount = 500,
-    referenceRadius = 1.55,
-    minRadius = 0.38,
-    maxRadius = 1.55,
+    referenceRadius = 1.85,
+    minRadius = 0.5,
+    maxRadius = 1.85,
     noiseScale = 0.75,
     isNoise = false
   } = options;
@@ -638,9 +638,9 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
   const maxCells = 40;
   const visibleCells = cells.slice(0, maxCells);
   const omittedCount = Math.max(0, cells.length - visibleCells.length);
-  const columns = Math.min(2, visibleCells.length || 1);
-  const cellWidth = 320;
-  const cellHeight = 260;
+  const columns = Math.min(3, visibleCells.length || 1);
+  const cellWidth = 360;
+  const cellHeight = 280;
   const isLight = document.documentElement.classList.contains('light');
   const canvasBg = isLight ? '#f1f5f9' : '#060913';
   const cellBg = isLight ? '#ffffff' : '#090d1f';
@@ -654,7 +654,8 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
   const width = columns * cellWidth;
   const height = Math.max(cellHeight, Math.ceil(visibleCells.length / columns) * cellHeight);
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  // For ultra high-definition plots, we use a higher resolution scaling factor (at least 3.5x baseline)
+  const dpr = Math.max(3.5, (window.devicePixelRatio || 1) * 2.0);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -671,7 +672,7 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     return;
   }
 
-  const scale = 78.0; // 缩放比例
+  const scale = 88.0; // 缩放比例
   visibleCells.forEach((cell, idx) => {
     const row = Math.floor(idx / columns);
     const col = idx % columns;
@@ -694,9 +695,9 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
       ctx.fillStyle = gtColor;
       const gtSize = inferPointRadius(visualReplayData.ground_truth.length, {
         referenceCount: 800,
-        referenceRadius: 1.15,
-        minRadius: 0.35,
-        maxRadius: 1.15
+        referenceRadius: 1.35,
+        minRadius: 0.45,
+        maxRadius: 1.35
       });
       for (let pIdx = 0; pIdx < visualReplayData.ground_truth.length; pIdx++) {
         const pt = visualReplayData.ground_truth[pIdx];
@@ -730,32 +731,32 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     
     // 5. 绘制格内标注信息 (Algorithm Name)
     ctx.textAlign = 'center';
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = 'bold 13px sans-serif';
     ctx.fillStyle = cell.algo === 'avg_ddim' 
       ? (isLight ? '#059669' : '#34d399') 
       : (isLight ? '#1e293b' : '#94a3b8');
     const frameLabel = cell.frameIdx === null ? '最终' : `t=${(cell.sampleT ?? 0).toFixed(3)} · Frame ${cell.frameIdx + 1}/${cell.frameTotal + 1}`;
-    ctx.fillText(`${ALGO_DISPLAY_NAMES[cell.algo]} · NFE ${cell.nfe}`, offsetX + cellWidth / 2, offsetY + 22);
-    ctx.font = '10px monospace';
+    ctx.fillText(`${ALGO_DISPLAY_NAMES[cell.algo]} · NFE ${cell.nfe}`, offsetX + cellWidth / 2, offsetY + 24);
+    ctx.font = '11px monospace';
     ctx.fillStyle = '#64748b';
-    ctx.fillText(frameLabel, offsetX + cellWidth / 2, offsetY + 38);
+    ctx.fillText(frameLabel, offsetX + cellWidth / 2, offsetY + 41);
     
     // 绘制该算法在此 NFE 下的倒角距离 (Chamfer Distance)
     const cdValue = getFinalMetricValue(cell.runData, 'chamfer');
     const cdLabel = cdValue === null ? 'N/A' : cdValue.toFixed(4);
     
-    ctx.font = '10px monospace';
+    ctx.font = '11px monospace';
     ctx.fillStyle = cell.algo === 'avg_ddim' 
       ? (isLight ? '#059669' : '#34d399') 
       : (isLight ? '#475569' : 'rgba(148, 163, 184, 0.7)');
-    ctx.fillText(`CD: ${cdLabel}`, offsetX + cellWidth / 2, offsetY + cellHeight - 12);
+    ctx.fillText(`CD: ${cdLabel}`, offsetX + cellWidth / 2, offsetY + cellHeight - 14);
   });
 
   if (omittedCount > 0) {
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-    ctx.fillRect(width - 235, height - 28, 228, 20);
+    ctx.fillRect(width - 245, height - 28, 238, 20);
     ctx.fillStyle = '#fbbf24';
-    ctx.font = '10px monospace';
+    ctx.font = '11px monospace';
     ctx.textAlign = 'right';
     ctx.fillText(`组合过多，已省略 ${omittedCount} 个可绘制单元`, width - 12, height - 14);
   }
