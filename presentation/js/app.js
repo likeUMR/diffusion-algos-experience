@@ -78,7 +78,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // 初始化物理流形数据集海螺线展示画布
   initDatasetSpiralCanvas();
 
-  // 渲染左侧学术演进编年史
+  // 渲染 left 侧学术演进编年史
   renderTimeline();
 
   // 渲染右侧激活学术大视窗页面（默认 DDPM）
@@ -87,6 +87,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // 初始化我的 HPO 测评 Dashboard
   initHpoDashboardControls();
   updateHpoDisplay();
+
+  // 同步初始化主题按钮图标
+  updateThemeIcons();
 });
 
 // 3. 渲染左侧学术演进时间轴
@@ -638,6 +641,16 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
   const columns = Math.min(2, visibleCells.length || 1);
   const cellWidth = 320;
   const cellHeight = 260;
+  const isLight = document.documentElement.classList.contains('light');
+  const canvasBg = isLight ? '#f1f5f9' : '#060913';
+  const cellBg = isLight ? '#ffffff' : '#090d1f';
+  const gtColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
+  const noiseColor = isLight ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.3)';
+  const textNoDataColor = isLight ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)';
+  const cellBorderColor = (cellAlgo) => cellAlgo === 'avg_ddim' 
+    ? (isLight ? 'rgba(16, 185, 129, 0.35)' : 'rgba(52, 211, 153, 0.25)') 
+    : (isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.05)');
+
   const width = columns * cellWidth;
   const height = Math.max(cellHeight, Math.ceil(visibleCells.length / columns) * cellHeight);
 
@@ -647,11 +660,11 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 
-  ctx.fillStyle = '#060913';
+  ctx.fillStyle = canvasBg;
   ctx.fillRect(0, 0, width, height);
 
   if (visibleCells.length === 0) {
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = isLight ? '#475569' : '#94a3b8';
     ctx.font = '15px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('当前筛选组合没有可绘制的点云 / 轨迹数据', width / 2, height / 2);
@@ -666,10 +679,10 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     const offsetY = row * cellHeight;
     
     // 绘制格子背景与精美发光边框
-    ctx.fillStyle = '#090d1f';
+    ctx.fillStyle = cellBg;
     ctx.fillRect(offsetX + 3, offsetY + 3, cellWidth - 6, cellHeight - 6);
     
-    ctx.strokeStyle = cell.algo === 'avg_ddim' ? 'rgba(52, 211, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = cellBorderColor(cell.algo);
     ctx.lineWidth = cell.algo === 'avg_ddim' ? 2 : 1;
     ctx.strokeRect(offsetX + 3, offsetY + 3, cellWidth - 6, cellHeight - 6);
     
@@ -678,7 +691,7 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     
     // 3. 绘制背景参考流形线 (Ground Truth) -- 淡淡的白灰色显示真实轮廓
     if (visualReplayData.ground_truth) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.fillStyle = gtColor;
       const gtSize = inferPointRadius(visualReplayData.ground_truth.length, {
         referenceCount: 800,
         referenceRadius: 1.15,
@@ -698,7 +711,7 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     const isNoiseFrame = cell.frameIdx === 0;
     
     if (points && points.length > 0) {
-      ctx.fillStyle = isNoiseFrame ? 'rgba(255, 255, 255, 0.3)' : ALGO_COLORS[cell.algo];
+      ctx.fillStyle = isNoiseFrame ? noiseColor : ALGO_COLORS[cell.algo];
       const ptRadius = inferPointRadius(points.length, { isNoise: isNoiseFrame });
       for (let pIdx = 0; pIdx < points.length; pIdx++) {
         const pt = points[pIdx];
@@ -709,7 +722,7 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
         ctx.fill();
       }
     } else {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.fillStyle = textNoDataColor;
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('暂无点云数据 (缺失)', cellCenterX, cellCenterY);
@@ -718,7 +731,9 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     // 5. 绘制格内标注信息 (Algorithm Name)
     ctx.textAlign = 'center';
     ctx.font = 'bold 12px sans-serif';
-    ctx.fillStyle = cell.algo === 'avg_ddim' ? '#34d399' : '#94a3b8';
+    ctx.fillStyle = cell.algo === 'avg_ddim' 
+      ? (isLight ? '#059669' : '#34d399') 
+      : (isLight ? '#1e293b' : '#94a3b8');
     const frameLabel = cell.frameIdx === null ? '最终' : `t=${(cell.sampleT ?? 0).toFixed(3)} · Frame ${cell.frameIdx + 1}/${cell.frameTotal + 1}`;
     ctx.fillText(`${ALGO_DISPLAY_NAMES[cell.algo]} · NFE ${cell.nfe}`, offsetX + cellWidth / 2, offsetY + 22);
     ctx.font = '10px monospace';
@@ -730,7 +745,9 @@ function renderHpoPointsCanvas(animationFrameIndex = null) {
     const cdLabel = cdValue === null ? 'N/A' : cdValue.toFixed(4);
     
     ctx.font = '10px monospace';
-    ctx.fillStyle = cell.algo === 'avg_ddim' ? '#34d399' : 'rgba(148, 163, 184, 0.7)';
+    ctx.fillStyle = cell.algo === 'avg_ddim' 
+      ? (isLight ? '#059669' : '#34d399') 
+      : (isLight ? '#475569' : 'rgba(148, 163, 184, 0.7)');
     ctx.fillText(`CD: ${cdLabel}`, offsetX + cellWidth / 2, offsetY + cellHeight - 12);
   });
 
@@ -992,6 +1009,10 @@ function renderHpoCharts() {
     hpoChartInstance = null;
   }
   
+  const isLight = document.documentElement.classList.contains('light');
+  const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.03)';
+  const chartTextColor = isLight ? '#475569' : '#94a3b8';
+  
   const isLoss = currentHpoImageKind === 'loss';
   const isLast = currentHpoProcess === 'last';
   const combos = getHpoRunCombos();
@@ -1095,7 +1116,7 @@ function renderHpoCharts() {
         legend: {
           position: 'top',
           labels: {
-            color: '#94a3b8',
+            color: chartTextColor,
             font: { size: currentHpoNfe === 'all' && currentHpoAlgo === 'all' ? 8 : 9, weight: 'bold' },
             boxWidth: 8,
             boxHeight: 8,
@@ -1134,14 +1155,14 @@ function renderHpoCharts() {
           title: {
             display: true,
             text: isLast ? 'Selected Run' : 'Epoch',
-            color: '#64748b',
+            color: isLight ? '#475569' : '#64748b',
             font: { size: 9, weight: 'bold' }
           },
           grid: {
-            color: 'rgba(255, 255, 255, 0.03)'
+            color: chartGridColor
           },
           ticks: {
-            color: '#64748b',
+            color: isLight ? '#475569' : '#64748b',
             font: { size: 9 },
             maxRotation: isLast ? 65 : 0,
             minRotation: isLast ? 35 : 0,
@@ -1156,14 +1177,14 @@ function renderHpoCharts() {
           title: {
             display: true,
             text: yTitle,
-            color: '#64748b',
+            color: isLight ? '#475569' : '#64748b',
             font: { size: 9, weight: 'bold' }
           },
           grid: {
-            color: 'rgba(255, 255, 255, 0.05)'
+            color: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.05)'
           },
           ticks: {
-            color: '#64748b',
+            color: isLight ? '#475569' : '#64748b',
             font: { size: 9 },
             callback: yTicksCallback
           }
@@ -1437,7 +1458,8 @@ function initDatasetSpiralCanvas() {
     const centerY = height / 2;
     
     // 绘制坐标轴
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+    const isLight = document.documentElement.classList.contains('light');
+    ctx.strokeStyle = isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.025)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
@@ -1447,7 +1469,7 @@ function initDatasetSpiralCanvas() {
     ctx.stroke();
     
     // 绘制极坐标同心圆虚线
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.04)';
+    ctx.strokeStyle = isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.04)';
     ctx.setLineDash([3, 3]);
     for (let r = 15; r <= 60; r += 15) {
       ctx.beginPath();
@@ -1569,4 +1591,52 @@ function initDatasetSpiralCanvas() {
     animationFrameId = requestAnimationFrame(loop);
   };
   loop();
+}
+
+// 16. 主题切换与同步控制
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark');
+  
+  if (isDark) {
+    html.classList.remove('dark');
+    html.classList.add('light');
+    localStorage.setItem('theme', 'light');
+  } else {
+    html.classList.remove('light');
+    html.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
+  }
+  
+  // 更新按钮图标
+  updateThemeIcons();
+  
+  // 1. 重绘物理仿真画布，更新它的网格色
+  if (simulator) {
+    simulator.draw();
+  }
+  
+  // 2. 重新初始化物理流形数据集海螺线展示画布
+  initDatasetSpiralCanvas();
+  
+  // 3. 刷新 HPO 测评 ChartJS 图表
+  if (hpoChartInstance) {
+    renderHpoCharts();
+  }
+  
+  // 4. 重绘 HPO 点云重放画布
+  renderHpoPointsCanvas();
+}
+
+function updateThemeIcons() {
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (!toggleBtn) return;
+  const isDark = document.documentElement.classList.contains('dark');
+  
+  if (isDark) {
+    toggleBtn.innerHTML = '<i data-lucide="sun" class="w-5 h-5"></i>';
+  } else {
+    toggleBtn.innerHTML = '<i data-lucide="moon" class="w-5 h-5"></i>';
+  }
+  lucide.createIcons();
 }

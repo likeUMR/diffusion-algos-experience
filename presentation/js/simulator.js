@@ -123,7 +123,8 @@ class PhysicsSimulator {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
     // 绘制一个带有未来科技感、同心圆雷达波纹的网格背景
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+    const isLight = document.documentElement.classList.contains('light');
+    this.ctx.strokeStyle = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.015)';
     this.ctx.lineWidth = 1;
     for (let r = 40; r < 210; r += 40) {
       this.ctx.beginPath();
