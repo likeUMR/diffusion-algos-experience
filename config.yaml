@@ -59,7 +59,7 @@ algorithms:
     avg_k: 30              # 每个训练点一共使用 30 个候选，额外采样 29 个原始候选
     gaussian_candidate_sampling: true # 补充候选点使用以原始点为中心的高斯拒绝采样
     gaussian_candidate_std: 0.3
-    gaussian_candidate_proposals: 256 # 每轮并行提出的候选数；通过者全部保留，超过所需数量则截断
+    gaussian_candidate_proposals: 1024 # 每轮并行提出的候选数；通过者全部保留，超过所需数量则截断
     lr: 0.001410701
     weight_decay: 0.00002818631
   vdm:

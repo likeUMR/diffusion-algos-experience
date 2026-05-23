@@ -122,7 +122,7 @@ def main():
     parser.add_argument("--avg_k", type=int, default=30)
     parser.add_argument("--gaussian_candidate_sampling", action="store_true")
     parser.add_argument("--gaussian_candidate_std", type=float, default=0.3)
-    parser.add_argument("--gaussian_candidate_proposals", type=int, default=256)
+    parser.add_argument("--gaussian_candidate_proposals", type=int, default=1024)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 

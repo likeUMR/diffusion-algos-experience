@@ -1,0 +1,244 @@
+/* ========================================== */
+/* 🎨 THEME VARIABLES & SYSTEM */
+/* ========================================== */
+
+/* 默认（浅色模式）样式系统 */
+:root, html.light {
+  --bg-color: #f8fafc; /* slate-50 */
+  --bg-gradient-start: rgba(241, 245, 249, 0.85); /* slate-100 */
+  --bg-gradient-mid: rgba(99, 102, 241, 0.05);
+  --bg-gradient-end: rgba(6, 182, 212, 0.05);
+  
+  --text-primary: #0f172a; /* slate-900 */
+  --text-secondary: #334155; /* slate-700 */
+  --text-muted: #64748b; /* slate-500 */
+  
+  --border-primary: rgba(0, 0, 0, 0.08);
+  --border-secondary: rgba(0, 0, 0, 0.12);
+  
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 10px 30px -3px rgba(0, 0, 0, 0.04);
+  
+  --card-inner-bg: rgba(241, 245, 249, 0.7); /* slate-100/70 */
+  --card-inner-border: rgba(0, 0, 0, 0.06);
+  
+  --btn-secondary-bg: #f1f5f9; /* slate-100 */
+  --btn-secondary-hover: #e2e8f0; /* slate-200 */
+  --btn-secondary-text: #334155; /* slate-700 */
+  
+  --simulator-bg: #f8fafc; /* slate-50 */
+  --grid-line: rgba(0, 0, 0, 0.04);
+}
+
+/* 深色模式样式系统 */
+html.dark {
+  --bg-color: #03050c;
+  --bg-gradient-start: rgba(17, 24, 39, 0.6);
+  --bg-gradient-mid: rgba(99, 102, 241, 0.12);
+  --bg-gradient-end: rgba(6, 182, 212, 0.12);
+  
+  --text-primary: #f1f5f9; /* slate-100 */
+  --text-secondary: #94a3b8; /* slate-400 */
+  --text-muted: #64748b; /* slate-500 */
+  
+  --border-primary: rgba(255, 255, 255, 0.05);
+  --border-secondary: rgba(255, 255, 255, 0.1);
+  
+  --glass-bg: rgba(11, 17, 32, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: none;
+  
+  --card-inner-bg: rgba(0, 0, 0, 0.35);
+  --card-inner-border: rgba(255, 255, 255, 0.05);
+  
+  --btn-secondary-bg: #1e293b; /* slate-800 */
+  --btn-secondary-hover: #334155; /* slate-700 */
+  --btn-secondary-text: #cbd5e1; /* slate-300 */
+  
+  --simulator-bg: #020408;
+  --grid-line: rgba(255, 255, 255, 0.015);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  background-image: 
+    radial-gradient(at 0% 0%, var(--bg-gradient-start) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, var(--bg-gradient-mid) 0, transparent 60%),
+    radial-gradient(at 100% 100%, var(--bg-gradient-end) 0, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.timeline-line {
+  background: linear-gradient(to bottom, #10b981 0%, #f59e0b 35%, #06b6d4 70%, #6366f1 100%);
+}
+
+/* custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(4, 7, 17, 0.5);
+  transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.katex {
+  font-size: 1.05em;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========================================== */
+/* ☀️ LIGHT THEME OVERRIDES (无侵入式浅色覆盖) */
+/* ========================================== */
+
+html.light {
+  color-scheme: light;
+}
+
+/* 文本覆盖 */
+html.light .text-white,
+html.light h1.text-transparent,
+html.light h2.text-white,
+html.light h3.text-white,
+html.light h4.text-white,
+html.light .text-slate-100,
+html.light .text-slate-50,
+html.light .text-slate-200 {
+  color: var(--text-primary) !important;
+}
+
+/* 在大标题中，浅色下我们直接显示深灰色，去除渐变裁剪避免对比度过低 */
+html.light h1.text-transparent {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+html.light .text-slate-300,
+html.light .text-slate-400 {
+  color: var(--text-secondary) !important;
+}
+
+html.light .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+/* 背景覆盖：使原本极深色的各种卡片与内嵌区域适配浅色卡片底色 */
+html.light .bg-slate-900,
+html.light .bg-slate-950,
+html.light .bg-[#020408],
+html.light .bg-black\/20,
+html.light .bg-black\/25,
+html.light .bg-black\/30,
+html.light .bg-black\/35,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/60,
+html.light .bg-black\/70,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/45,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-950\/40,
+html.light .bg-\[\#020408\] {
+  background-color: var(--card-inner-bg) !important;
+}
+
+/* 画布背景 */
+html.light #simulator-canvas {
+  background-color: var(--simulator-bg) !important;
+}
+
+html.light #hpo-points-canvas {
+  background-color: var(--simulator-bg) !important;
+}
+
+/* 边框覆盖 */
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/20,
+html.light .border-slate-800 {
+  border-color: var(--border-primary) !important;
+}
+
+html.light .divide-white\/5 > * {
+  border-color: var(--border-primary) !important;
+}
+
+/* 按钮特定处理：浅色模式下，次要按钮 bg-slate-800 自动转为清爽的浅灰色 */
+html.light .bg-slate-800 {
+  background-color: var(--btn-secondary-bg) !important;
+  color: var(--btn-secondary-text) !important;
+  border-color: var(--border-primary) !important;
+}
+
+html.light .bg-slate-800:hover {
+  background-color: var(--btn-secondary-hover) !important;
+}
+
+/* 导航栏 tabs 的浅色模式微调 */
+html.light #deck-tabs {
+  background-color: var(--btn-secondary-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+html.light .deck-tab-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+/* 表格特定背景色 */
+html.light thead .bg-indigo-950\/20,
+html.light thead .bg-emerald-950\/20 {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+
+html.light tbody .divide-white\/5 > tr {
+  border-color: var(--border-primary) !important;
+}
+
+html.light .divide-y > * {
+  border-color: var(--border-primary) !important;
+}
+
+/* 弹出框(Modal)背景 */
+html.light #citation-modal .bg-slate-900\/50 {
+  background-color: var(--bg-color) !important;
+}
+
+/* 滚动条浅色适配 */
+html.light ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}

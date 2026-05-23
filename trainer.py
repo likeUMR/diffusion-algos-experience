@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shutil
 import datetime
+import json
 
 class Trainer:
     """
@@ -27,7 +28,8 @@ class Trainer:
         config_path: str = "config.yaml",
         checkpoint_dir: str = None,
         backup_source: bool = True,
-        seed: int = None
+        seed: int = None,
+        visual_config: dict = None
     ):
         # 1. 自动选择运算设备 (CPU / CUDA)
         if device is None:
@@ -121,6 +123,82 @@ class Trainer:
         self.batch_size = batch_size
         self.algorithm_name = algo_name
         self.seed = seed
+        self.visual_config = visual_config or {}
+        self.visual_enabled = bool(self.visual_config.get("enabled", False))
+        self.global_step = 0
+        self.lr_history = []
+        self.batch_loss_history = []
+        if self.visual_enabled:
+            self.visual_dir = os.path.join(self.experiment_dir, self.visual_config.get("visual_dirname", "visual_data"))
+            self.visual_logs_dir = os.path.join(self.visual_dir, "logs")
+            self.visual_samples_dir = os.path.join(self.visual_dir, "samples")
+            self.visual_traces_dir = os.path.join(self.visual_dir, "sampling_traces")
+            self.visual_checkpoints_dir = os.path.join(self.visual_dir, "checkpoints")
+            for path in [
+                self.visual_dir,
+                self.visual_logs_dir,
+                self.visual_samples_dir,
+                self.visual_traces_dir,
+                self.visual_checkpoints_dir,
+            ]:
+                os.makedirs(path, exist_ok=True)
+            self._save_visual_dataset_snapshot()
+            print(f"[*] 可视化优先模式已开启，完整中间数据将保存至: {self.visual_dir}")
+
+    def _append_visual_jsonl(self, filename: str, record: dict):
+        if not self.visual_enabled:
+            return
+        path = os.path.join(self.visual_logs_dir, filename)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _save_visual_dataset_snapshot(self):
+        if not self.visual_enabled or not hasattr(self.dataset, "data"):
+            return
+        dataset_path = os.path.join(self.visual_dir, "dataset_snapshot.npz")
+        np.savez_compressed(
+            dataset_path,
+            data=self.dataset.data.detach().cpu().numpy(),
+            turns=np.asarray([getattr(self.dataset, "turns", 3.0)], dtype=np.float32),
+        )
+
+    def _save_visual_manifest(self, epochs: int):
+        if not self.visual_enabled:
+            return
+        manifest = {
+            "algorithm_name": self.algorithm_name,
+            "experiment_dir": self.experiment_dir,
+            "visual_dir": self.visual_dir,
+            "epochs": epochs,
+            "batch_size": self.batch_size,
+            "seed": self.seed,
+            "initial_lr": self.init_lr,
+            "weight_decay": self.init_weight_decay,
+            "loss_history_file": "logs/epoch_metrics.jsonl",
+            "batch_loss_file": "logs/batch_losses.jsonl",
+            "sample_dir": "samples",
+            "sampling_trace_dir": "sampling_traces",
+            "checkpoint_dir": "checkpoints",
+            "notes": "This run is optimized for visualization replay and stores raw numeric artifacts in npz/jsonl formats.",
+        }
+        with open(os.path.join(self.visual_dir, "visual_manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+    def _save_visual_checkpoint(self, epoch: int, loss: float):
+        if not self.visual_enabled:
+            return
+        if not self.visual_config.get("save_all_checkpoints", False):
+            return
+        state = {
+            "epoch": epoch,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "loss": loss,
+            "lr": self.optimizer.param_groups[0]["lr"],
+            "global_step": self.global_step,
+        }
+        filepath = os.path.join(self.visual_checkpoints_dir, f"checkpoint_epoch_{epoch:04d}.pt")
+        torch.save(state, filepath)
 
     def train(self, epochs: int = 100, plot_nodes: int = 10, save_nodes: int = 4):
         """
@@ -171,7 +249,7 @@ class Trainer:
             epoch_loss = 0.0
             num_batches = 0
             
-            for batch_x in self.dataloader:
+            for batch_idx, batch_x in enumerate(self.dataloader, start=1):
                 # 将数据移动到设备上
                 batch_x = batch_x.to(self.device)
                 
@@ -189,6 +267,19 @@ class Trainer:
                 
                 epoch_loss += loss.item()
                 num_batches += 1
+                self.global_step += 1
+                if self.visual_enabled:
+                    loss_value = float(loss.item())
+                    self.batch_loss_history.append(loss_value)
+                    batch_log_interval = int(self.visual_config.get("batch_log_interval", 1))
+                    if batch_log_interval > 0 and (batch_idx % batch_log_interval == 0 or batch_idx == 1):
+                        self._append_visual_jsonl("batch_losses.jsonl", {
+                            "epoch": epoch,
+                            "batch": batch_idx,
+                            "global_step": self.global_step,
+                            "loss": loss_value,
+                            "lr": float(self.optimizer.param_groups[0]["lr"]),
+                        })
                 
             # 记录并打印平均 Loss
             avg_loss = epoch_loss / num_batches
@@ -197,6 +288,15 @@ class Trainer:
             # 更新学习率
             self.scheduler.step()
             current_lr = self.optimizer.param_groups[0]['lr']
+            self.lr_history.append(current_lr)
+            if self.visual_enabled:
+                self._append_visual_jsonl("epoch_metrics.jsonl", {
+                    "epoch": epoch,
+                    "avg_loss": float(avg_loss),
+                    "lr": float(current_lr),
+                    "global_step": self.global_step,
+                    "num_batches": num_batches,
+                })
             
             # 打印训练进度
             if epoch % 1 == 0 or epoch == epochs:
@@ -209,6 +309,7 @@ class Trainer:
             # 周期性保存模型
             if epoch in save_epochs:
                 self.save_checkpoint(epoch, avg_loss)
+            self._save_visual_checkpoint(epoch, avg_loss)
                 
         # 训练结束后绘制 Loss 曲线、指标变化曲线，并生成实验总结报告
         self.plot_loss_curve()
@@ -216,6 +317,7 @@ class Trainer:
         
         train_time = time.time() - start_time
         self.save_result_summary(train_time, avg_loss)
+        self._save_visual_manifest(epochs)
         print("训练已完成！")
 
     @torch.no_grad()
@@ -223,9 +325,31 @@ class Trainer:
         """
         采样生成数据，并与原始数据分布并排绘制对比，同时评测真实一维流形的距离和分布均匀度指标
         """
+        if self.visual_enabled:
+            n_samples = int(self.visual_config.get("eval_samples", n_samples))
         # 1. 运行算法的采样过程
         print(f" -> Epoch {epoch}: 正在进行反向采样生成...")
-        generated_points = self.algorithm.sample(self.model, n_samples, self.device)
+        should_trace = (
+            self.visual_enabled
+            and int(self.visual_config.get("trace_every_n_epochs", 0)) > 0
+            and (epoch % int(self.visual_config.get("trace_every_n_epochs", 1)) == 0 or epoch == self.scheduler.T_max)
+        )
+        if should_trace:
+            from visualization_recorder import sample_with_trace
+            trace_samples = int(self.visual_config.get("trace_samples", n_samples))
+            trace_dir = os.path.join(self.visual_traces_dir, f"epoch_{epoch:04d}")
+            generated_points = sample_with_trace(
+                self.algorithm,
+                self.model,
+                n_samples=trace_samples,
+                device=self.device,
+                trace_dir=trace_dir,
+                seed=None if self.seed is None else self.seed + epoch * 100003,
+            )
+            if trace_samples != n_samples:
+                generated_points = self.algorithm.sample(self.model, n_samples, self.device)
+        else:
+            generated_points = self.algorithm.sample(self.model, n_samples, self.device)
         generated_points_np = generated_points.cpu().numpy()
         
         # 计算评估指标
@@ -243,6 +367,24 @@ class Trainer:
         self.dist_history.append(avg_dist)
         self.uniformity_history.append(uniformity)
         self.coverage_history.append(coverage)
+        if self.visual_enabled:
+            np.savez_compressed(
+                os.path.join(self.visual_samples_dir, f"epoch_{epoch:04d}_samples.npz"),
+                generated=generated_points_np,
+                loss=np.asarray([current_loss], dtype=np.float32),
+                chamfer=np.asarray([avg_dist], dtype=np.float32),
+                uniformity=np.asarray([uniformity], dtype=np.float32),
+                coverage=np.asarray([coverage], dtype=np.float32),
+            )
+            self._append_visual_jsonl("sample_metrics.jsonl", {
+                "epoch": epoch,
+                "loss": float(current_loss),
+                "chamfer_distance": float(avg_dist),
+                "uniformity_entropy": float(uniformity),
+                "coverage": float(coverage),
+                "sample_file": f"samples/epoch_{epoch:04d}_samples.npz",
+                "trace_dir": f"sampling_traces/epoch_{epoch:04d}" if should_trace else None,
+            })
         
         # 2. 获取原始数据用于对比
         original_points = self.dataset.data.numpy()
@@ -301,6 +443,13 @@ class Trainer:
         plt.savefig(save_path, dpi=150)
         plt.close()
         print(f"Loss 曲线图已成功保存至: {save_path}")
+        if self.visual_enabled:
+            np.savez_compressed(
+                os.path.join(self.visual_logs_dir, "loss_history.npz"),
+                epoch_loss=np.asarray(self.loss_history, dtype=np.float32),
+                batch_loss=np.asarray(self.batch_loss_history, dtype=np.float32),
+                lr=np.asarray(self.lr_history, dtype=np.float32),
+            )
 
     def save_checkpoint(self, epoch: int, loss: float):
         """
@@ -366,6 +515,14 @@ class Trainer:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f"    评估指标曲线图已成功保存至: {save_path}")
+        if self.visual_enabled:
+            np.savez_compressed(
+                os.path.join(self.visual_logs_dir, "metric_history.npz"),
+                epochs=np.asarray(self.metric_epochs, dtype=np.int32),
+                chamfer=np.asarray(self.dist_history, dtype=np.float32),
+                uniformity=np.asarray(self.uniformity_history, dtype=np.float32),
+                coverage=np.asarray(self.coverage_history, dtype=np.float32),
+            )
 
     @torch.no_grad()
     def save_result_summary(self, total_time, final_loss):

@@ -733,7 +733,7 @@ def run_hpo(args, config):
                 trial_algo_params.setdefault("avg_k", 30)
                 trial_algo_params.setdefault("gaussian_candidate_sampling", False)
                 trial_algo_params.setdefault("gaussian_candidate_std", 0.3)
-                trial_algo_params.setdefault("gaussian_candidate_proposals", 256)
+                trial_algo_params.setdefault("gaussian_candidate_proposals", 1024)
         elif args.algorithm == "vdm":
             if args.fixed_sample_steps is None:
                 trial_algo_params["num_steps"] = trial.suggest_categorical("num_steps", [50, 80, 100, 150])

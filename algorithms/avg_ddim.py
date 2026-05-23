@@ -19,7 +19,7 @@ class AvgDDIM(DDIM):
         avg_k=30,
         gaussian_candidate_sampling=False,
         gaussian_candidate_std=0.3,
-        gaussian_candidate_proposals=256
+        gaussian_candidate_proposals=1024
     ):
         super().__init__(
             num_steps=num_steps,
@@ -78,16 +78,14 @@ class AvgDDIM(DDIM):
             dist_sq = torch.sum(centered ** 2, dim=-1)
             accept_prob = torch.exp(-0.5 * dist_sq / sigma_sq)
             accept = torch.rand_like(accept_prob) < accept_prob
-
-            for local_idx, row_idx in enumerate(active_rows.tolist()):
-                accepted_candidates = candidates[local_idx][accept[local_idx]]
-                if accepted_candidates.numel() == 0:
-                    continue
-                need = extra_count - int(fill_counts[row_idx].item())
-                take = min(need, accepted_candidates.shape[0])
-                start = fill_counts[row_idx]
-                accepted[row_idx, start:start + take] = accepted_candidates[:take]
-                fill_counts[row_idx] += take
+            accepted_rank = accept.to(torch.long).cumsum(dim=1)
+            needs = extra_count - fill_counts[active_rows]
+            keep = accept & (accepted_rank <= needs.unsqueeze(1))
+            if keep.any():
+                dst_cols = fill_counts[active_rows].unsqueeze(1) + accepted_rank - 1
+                dst_rows = active_rows.unsqueeze(1).expand_as(dst_cols)
+                accepted[dst_rows[keep], dst_cols[keep]] = candidates[keep]
+                fill_counts[active_rows] += keep.sum(dim=1)
 
         return accepted
 
