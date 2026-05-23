@@ -29,7 +29,7 @@ algorithms:
     num_blocks: 6          # HPO 胜出深度 (6残差块)
     time_emb_dim: 128
     num_steps: 50          # 恢复为 HPO 最佳 50 步对齐 (DDPM 训练与采样强耦合，不可盲目增加步数)
-    variance_type: "fixed_small"
+    variance_type: "fixed_geometric"
     beta_start: 0.0001
     beta_end: 0.16         # 终点 beta 调高彻底去偏
     lr: 0.0004363011       # 精配温和学习率，防止大深度梯度震荡
@@ -46,18 +46,34 @@ algorithms:
     beta_end: 0.16
     lr: 0.001410701        # HPO 胜出的最佳学习率
     weight_decay: 0.00002818631 # HPO 胜出的权重衰减，清除空间高频毛刺
+  avg_ddim:
+    epochs: 782            # 与 DDIM HPO 胜出配置保持一致
+    hidden_dim: 128
+    num_blocks: 4
+    time_emb_dim: 128
+    num_steps: 100
+    sample_steps: 100
+    eta: 0.0
+    beta_start: 0.0001
+    beta_end: 0.16
+    avg_k: 30              # 每个训练点一共使用 30 个候选，额外采样 29 个原始候选
+    gaussian_candidate_sampling: true # 补充候选点使用以原始点为中心的高斯拒绝采样
+    gaussian_candidate_std: 0.3
+    gaussian_candidate_proposals: 256 # 每轮并行提出的候选数；通过者全部保留，超过所需数量则截断
+    lr: 0.001410701
+    weight_decay: 0.00002818631
   vdm:
     epochs: 352            # 等效 352 Epochs 训练
     hidden_dim: 192
     num_blocks: 4
     time_emb_dim: 192
     num_steps: 50          
-    gamma_min: -5.0
-    gamma_max: 5.0
-    schedule_power: 1.0
-    loss_weighting: "uniform"
-    min_snr_gamma: 5.0
-    x0_clip: 5.0
+    sigma_min: 0.002       # Karras EDM 最小噪声尺度
+    sigma_max: 80.0        # Karras EDM 最大噪声尺度
+    p_mean: -1.2           # HPO 搜索核心项：训练 log-sigma 中心
+    p_std: 1.2             # HPO 搜索核心项：训练 log-sigma 宽度
+    loss_weighting: "edm_weighting"
+    sampler_rho: 7.0       # Karras 采样步长切分弯曲度
     lr: 0.00120192         # HPO 精调学习率
     weight_decay: 0.000004501255 # 精配权重衰减，完美保留连续变分极值表达
   v_learning:
@@ -85,12 +101,14 @@ algorithms:
     hidden_dim: 128
     num_blocks: 4
     time_emb_dim: 128
-    num_steps: 16          # 减少离散网格，让相邻一致性训练覆盖更大的噪声跨度
+    num_steps: 16          # 学生采样/一致性离散网格；HPO 固定 NFE 时会被覆盖
     sample_steps: 3        # 3步快速迭代纠偏积分
     sigma_data: 0.5
-    sigma_max: 2.0         # 训练/采样共享最大噪声尺度，缓解 t=1 与纯高斯先验错配
+    sigma_max: 1.0         # CD teacher 为标准高斯起点的 Flow Matching，学生先验固定匹配 N(0, I)
     epsilon: 0.002
     ema_decay: 0.95
+    distillation_steps: 100 # 固定蒸馏 100 步 Flow Matching teacher
+    training_mode: "cd"
     lr: 0.002689613        # 最佳在线/目标自一致性建立学习率
     weight_decay: 0.0002115797 # HPO 精配权重衰减
   mean_flow:
@@ -103,6 +121,9 @@ algorithms:
     num_steps: 5           # 反向 5 步高精度多阶积分采样
     interval_sampling: "mixed_full" # 显式混合全区间 [0,1]，匹配一步/少步采样查询
     full_interval_prob: 0.25
+    warmup_ratio: 0.5      # 先用稳定速度场目标 warm-up，避免早期 JVP 自指导数发散
+    jvp_ramp_ratio: 0.5    # warm-up 后逐步打开 MeanFlow JVP 项
+    max_jvp_weight: 0.25   # 2D 小数据上先限制自指项强度，防止均值坍缩和 loss 尖峰
     lr: 0.0003884811       # 精配稳定低学习率
     weight_decay: 0.000005247695 # 最佳权重衰减
 

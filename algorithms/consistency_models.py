@@ -5,7 +5,7 @@ from algorithms.base import BaseAlgorithm
 
 class ConsistencyModels(BaseAlgorithm):
     """
-    Consistency Models (一致性模型) —— 走向单步的终极演替。
+    Consistency Models (一致性模型) —— CD 蒸馏模式。
     核心论文: "Consistency Models" (Yang Song, Prafulla Dhariwal, Ilya Sutskever)
     
     1. 核心概念：一致性模型定义了一个自一致性映射 f_theta(x_t, t)，
@@ -16,12 +16,21 @@ class ConsistencyModels(BaseAlgorithm):
        f_theta(x, t) = c_skip(t) * x + c_out(t) * model(x, t)
        其中 c_skip(epsilon) = 1, c_out(epsilon) = 0。
        
-    3. 训练方法：采用 Consistency Training (CT) 直接从头训练。
-       在每个时间步离散点 t_i 和 t_{i+1}，在 x_0 上添加相同的噪声 z 以模拟同一去噪轨迹上的相邻点，
-       然后利用目标网络 (在线网络的 EMA 拷贝) 提供一致性目标，使模型在两个时间点的预测相一致：
-       f_theta(x_{t_{i+1}}, t_{i+1}) ≈ f_{theta^-}(x_{t_i}, t_i)
+    3. 训练方法：采用 Consistency Distillation (CD)。
+       先固定一个 100 步 Flow Matching teacher，再从 teacher ODE 轨迹中取相邻状态：
+       f_theta(x_{t_{i+1}}, t_{i+1}) ≈ f_{theta^-}(x_{t_i}^{teacher}, t_i)。
     """
-    def __init__(self, num_steps=50, sample_steps=1, sigma_data=0.5, epsilon=0.002, ema_decay=0.95, sigma_max=1.0):
+    def __init__(
+        self,
+        num_steps=50,
+        sample_steps=1,
+        sigma_data=0.5,
+        epsilon=0.002,
+        ema_decay=0.95,
+        sigma_max=1.0,
+        distillation_steps=100,
+        training_mode="cd"
+    ):
         """
         参数:
             num_steps (int): 离散时间网格的大小 (也就是最大训练步数)
@@ -30,6 +39,8 @@ class ConsistencyModels(BaseAlgorithm):
             epsilon (int/float): 最小时间步长 (边界条件点)
             ema_decay (float): 目标网络参数 (theta^-) 的指数移动平均更新系数
             sigma_max (float): 最大噪声尺度。训练和采样必须使用同一个上界，避免先验错配。
+            distillation_steps (int): Flow Matching teacher 的固定 ODE 步数
+            training_mode (str): 当前固定使用 "cd"
         """
         super().__init__()
         if num_steps < 1:
@@ -44,7 +55,19 @@ class ConsistencyModels(BaseAlgorithm):
         self.epsilon = epsilon
         self.ema_decay = ema_decay
         self.sigma_max = sigma_max
+        self.distillation_steps = distillation_steps
+        self.training_mode = training_mode
         self.target_model = None
+        self.teacher_model = None
+
+    def set_teacher_model(self, teacher_model: nn.Module):
+        """
+        注入预训练 Flow Matching teacher。teacher 固定为 eval/frozen，仅用于 CD 轨迹蒸馏。
+        """
+        self.teacher_model = teacher_model
+        self.teacher_model.eval()
+        for p in self.teacher_model.parameters():
+            p.requires_grad = False
 
     def get_consistency_output(self, model: nn.Module, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
@@ -69,8 +92,13 @@ class ConsistencyModels(BaseAlgorithm):
 
     def compute_loss(self, model: nn.Module, x_0: torch.Tensor) -> torch.Tensor:
         """
-        计算 Consistency Training (CT) 的 L2/MSE 损失
+        计算 Consistency Distillation (CD) 的 L2/MSE 损失。
         """
+        if self.training_mode != "cd":
+            raise ValueError(f"未知的 Consistency Models 训练模式: {self.training_mode}")
+        if self.teacher_model is None:
+            raise RuntimeError("Consistency Distillation 需要先注入 100 步 Flow Matching teacher。")
+
         batch_size = x_0.shape[0]
         device = x_0.device
         
@@ -86,32 +114,40 @@ class ConsistencyModels(BaseAlgorithm):
             for p_target, p_online in zip(self.target_model.parameters(), model.parameters()):
                 p_target.copy_(self.ema_decay * p_target + (1.0 - self.ema_decay) * p_online.to(device))
                 
-        # 3. 随机采样离散步数索引。num_steps=1 时退化为直接学习 [epsilon, sigma_max] 全区间一致性映射。
-        if self.num_steps == 1:
-            t_curr = torch.full((batch_size,), self.epsilon, device=device, dtype=x_0.dtype)
-            t_next = torch.full((batch_size,), self.sigma_max, device=device, dtype=x_0.dtype)
-        else:
-            i = torch.randint(1, self.num_steps, (batch_size,), device=device)
-            # 时间尺度映射到 [epsilon, sigma_max] 上，并与采样初始噪声尺度保持一致。
-            t_curr = self.epsilon + (i - 1) / (self.num_steps - 1) * (self.sigma_max - self.epsilon)
-            t_next = self.epsilon + i / (self.num_steps - 1) * (self.sigma_max - self.epsilon)
-        
-        # 5. 采样同源高斯噪声 z
-        z = torch.randn_like(x_0)
-        
-        # 6. 计算相邻两个时间步的带噪数据点 (代表同一去噪路径上的两点)
-        x_t_curr = x_0 + t_curr.view(-1, 1) * z
-        x_t_next = x_0 + t_next.view(-1, 1) * z
-        
-        # 7. 计算在线模型在 t_{i+1} 时刻的一致性映射输出 (求梯度)
+        self.teacher_model = self.teacher_model.to(device)
+        self.teacher_model.eval()
+
+        # 3. 从 Flow Matching teacher 的 100 步 ODE 轨迹中随机抽一个相邻区间。
+        # FM 时间 s: 0=噪声, 1=数据；CM 时间 t: 1=噪声, 0=数据，因此 t = 1 - s。
+        teacher_steps = max(1, int(self.distillation_steps))
+        step_idx = int(torch.randint(0, teacher_steps, (1,), device=device).item())
+        dt = 1.0 / teacher_steps
+
+        with torch.no_grad():
+            x_teacher = torch.randn_like(x_0)
+            for k in range(step_idx):
+                s = torch.full((batch_size,), k * dt, device=device, dtype=x_0.dtype)
+                velocity = self.teacher_model(x_teacher, s)
+                x_teacher = x_teacher + velocity * dt
+
+            s_next = step_idx * dt
+            s_curr = (step_idx + 1) * dt
+            t_next = torch.full((batch_size,), max(self.epsilon, 1.0 - s_next), device=device, dtype=x_0.dtype)
+            t_curr = torch.full((batch_size,), max(self.epsilon, 1.0 - s_curr), device=device, dtype=x_0.dtype)
+
+            x_t_next = x_teacher
+            velocity = self.teacher_model(x_t_next, torch.full((batch_size,), s_next, device=device, dtype=x_0.dtype))
+            x_t_curr = x_t_next + velocity * dt
+
+        # 4. 在线 student 在较噪状态上直接预测数据端。
         f_theta = self.get_consistency_output(model, x_t_next, t_next)
-        
-        # 8. 计算目标模型在 t_i 时刻的一致性映射输出 (不求梯度)
+
+        # 5. EMA student 在 teacher 推进一步后的较干净状态上提供 CD 目标。
         with torch.no_grad():
             f_target = self.get_consistency_output(self.target_model, x_t_curr, t_curr)
             f_target = f_target.detach()
             
-        # 9. 一致性损失函数为两个输出的 MSE
+        # 6. 一致性蒸馏损失。
         loss = torch.mean((f_theta - f_target) ** 2)
         return loss
 

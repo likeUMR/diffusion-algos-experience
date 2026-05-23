@@ -3,7 +3,7 @@ import torch.nn as nn
 from algorithms.base import BaseAlgorithm
 
 class MeanFlow(BaseAlgorithm):
-    """
+    r"""
     何恺明团队提出的平均流 (Mean Flows) 一步生成算法。
     1. 核心概念：直接预测整个区间上的“平均速度” u，而不是“瞬时速度” v。
        由此可实现高品质的一步 (1-NFE) 数据生成。
@@ -13,7 +13,17 @@ class MeanFlow(BaseAlgorithm):
     3. 自适应加权：通过 powered L2 loss 自动给难易样本分配不同的学习权重。
     4. 采样过程：可进行超快 1-step sampling (z_0 = z_1 - u(z_1, 0, 1))，也支持多步积分。
     """
-    def __init__(self, p=0.5, c=1e-3, num_steps=1, interval_sampling="mixed_full", full_interval_prob=0.25):
+    def __init__(
+        self,
+        p=0.5,
+        c=1e-3,
+        num_steps=1,
+        interval_sampling="mixed_full",
+        full_interval_prob=0.25,
+        warmup_ratio=0.5,
+        jvp_ramp_ratio=0.5,
+        max_jvp_weight=0.25,
+    ):
         """
         参数:
             p (float): 损失的自适应加权指数。
@@ -28,6 +38,9 @@ class MeanFlow(BaseAlgorithm):
                                      - "uniform_interval": 均匀采样区间长度 t-r
                                      - "mixed_full": 在 uniform_interval 基础上显式混入全区间 [0,1]
             full_interval_prob (float): mixed_full 策略下强制训练 [0,1] 全区间平均速度的比例。
+            warmup_ratio (float): 训练前多少比例只学习稳定的条件平均速度目标 v。
+            jvp_ramp_ratio (float): warm-up 后用多少比例逐步打开 MeanFlow JVP 自指项。
+            max_jvp_weight (float): JVP 自指项的最终权重，1.0 对应原始 MeanFlow 目标。
         """
         super().__init__()
         self.p = p
@@ -35,6 +48,24 @@ class MeanFlow(BaseAlgorithm):
         self.num_steps = num_steps
         self.interval_sampling = interval_sampling
         self.full_interval_prob = full_interval_prob
+        self.warmup_ratio = warmup_ratio
+        self.jvp_ramp_ratio = jvp_ramp_ratio
+        self.max_jvp_weight = max_jvp_weight
+        self.training_epoch = 0
+        self.training_epochs = 1
+
+    def set_training_progress(self, epoch: int, total_epochs: int):
+        self.training_epoch = max(0, int(epoch))
+        self.training_epochs = max(1, int(total_epochs))
+
+    def _jvp_weight(self) -> float:
+        progress = self.training_epoch / self.training_epochs
+        if progress <= self.warmup_ratio:
+            return 0.0
+        ramp = max(self.jvp_ramp_ratio, 1e-8)
+        alpha = (progress - self.warmup_ratio) / ramp
+        alpha = min(max(alpha, 0.0), 1.0)
+        return float(self.max_jvp_weight * alpha)
 
     def _sample_interval(self, batch_size: int, device: torch.device):
         eps = 1e-4
@@ -77,38 +108,45 @@ class MeanFlow(BaseAlgorithm):
         # 5. 真实条件瞬时速度 v = e - x_1
         v = e - x_1
         
-        # --- 准备通过 Autograd 求解 Jacobian-vector product ---
-        # 启用 z 和 t_grad 的求导
-        z = z.detach().requires_grad_(True)
-        t_grad = t.detach().requires_grad_(True)
-        
+        jvp_weight = self._jvp_weight()
+        needs_jvp = jvp_weight > 0.0
+
+        # warm-up 阶段不构建输入梯度图，只学习稳定的条件平均速度 v。
+        if needs_jvp:
+            z = z.detach().requires_grad_(True)
+            t_model = t.detach().requires_grad_(True)
+        else:
+            z = z.detach()
+            t_model = t
+
         # 拼接双时间参数并送入模型，得到当前预测的平均速度 u，形状为 [B, 2]
-        time_tensor = torch.stack([r, t_grad], dim=-1)
+        time_tensor = torch.stack([r, t_model], dim=-1)
         u = model(z, time_tensor)
-        
-        # 6. 计算全导数 dudt = v * \partial_z u + \partial_t u
-        # 针对 2D 点的 2 个通道分别求偏导，不仅完美兼容 PyTorch，而且极度稳定
-        dudt = torch.zeros_like(u)
-        for i in range(2):
-            grad_outputs = torch.ones_like(u[:, i])
-            grads = torch.autograd.grad(
-                outputs=u[:, i],
-                inputs=[z, t_grad],
-                grad_outputs=grad_outputs,
-                retain_graph=True,
-                create_graph=True
-            )
-            grad_z, grad_t = grads[0], grads[1]
-            
-            # 计算第 i 个输出的全导数并存储
-            dudt[:, i] = (grad_z * v).sum(dim=-1) + grad_t
-            
-        # 7. 构建 stop-gradient 变分目标 u_tgt = v - (t - r) * dudt
-        # 数值稳定：在训练初期随机模型的导数可能极大导致训练发散。将其裁剪到物理合理范围内，保证极强稳定性
-        dudt = torch.clamp(dudt, min=-15.0, max=15.0)
-        t_minus_r = (t - r).view(-1, 1)
-        u_tgt = v - t_minus_r * dudt
-        u_tgt = torch.clamp(u_tgt, min=-15.0, max=15.0)
+
+        if needs_jvp:
+            # 6. 计算全导数 dudt = v * \partial_z u + \partial_t u。
+            # 目标随后会 detach，因此这里不需要二阶梯度。
+            dudt = torch.zeros_like(u)
+            for i in range(2):
+                grad_outputs = torch.ones_like(u[:, i])
+                grads = torch.autograd.grad(
+                    outputs=u[:, i],
+                    inputs=[z, t_model],
+                    grad_outputs=grad_outputs,
+                    retain_graph=True,
+                    create_graph=False
+                )
+                grad_z, grad_t = grads[0], grads[1]
+                dudt[:, i] = (grad_z * v).sum(dim=-1) + grad_t
+
+            # 7. 构建 stop-gradient 变分目标。jvp_weight 从 0 慢慢升到 1，
+            # 避免欠训练模型的自指导数项在早期主导目标。
+            dudt = torch.clamp(dudt, min=-15.0, max=15.0)
+            t_minus_r = (t - r).view(-1, 1)
+            u_tgt = v - jvp_weight * t_minus_r * dudt
+            u_tgt = torch.clamp(u_tgt, min=-15.0, max=15.0)
+        else:
+            u_tgt = v
         
         # 对目标应用 stop-gradient (detach)，防止二阶导数优化
         u_tgt_sg = u_tgt.detach()

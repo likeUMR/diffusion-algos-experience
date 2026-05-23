@@ -9,14 +9,15 @@ class DDPM(BaseAlgorithm):
        x_t = sqrt(\bar{\alpha}_t) * x_0 + sqrt(1 - \bar{\alpha}_t) * \epsilon
     2. 逆向过程: 训练网络预测注入的噪声，然后使用马尔可夫链逐步还原数据。
     """
-    def __init__(self, num_steps=100, beta_start=1e-4, beta_end=0.02, variance_type="fixed_large"):
+    def __init__(self, num_steps=100, beta_start=1e-4, beta_end=0.02, variance_type="fixed_geometric"):
         """
         参数:
             num_steps (int): 扩散的总时间步数 T
             beta_start (float): 初始 beta 值
             beta_end (float): 最终 beta 值
             variance_type (str): 采样时的方差选择，"fixed_large" 为 \sigma_t^2 = \beta_t,
-                                "fixed_small" 为 \sigma_t^2 = \tilde{\beta}_t (后验方差)
+                                "fixed_small" 为 \sigma_t^2 = \tilde{\beta}_t (后验方差)，
+                                "fixed_geometric" 为两者方差的几何平均
         """
         super().__init__()
         self.num_steps = num_steps
@@ -106,6 +107,10 @@ class DDPM(BaseAlgorithm):
                 elif self.variance_type == "fixed_small":
                     # \sigma_t^2 = \tilde{\beta}_t (后验方差)
                     variance = self._get_coefficient(self.posterior_variance, t, x_t.shape)
+                elif self.variance_type == "fixed_geometric":
+                    # \sigma_t^2 = sqrt(\beta_t * \tilde{\beta}_t)，在 large/small 两种方差之间取几何平均。
+                    posterior_variance_t = self._get_coefficient(self.posterior_variance, t, x_t.shape)
+                    variance = torch.sqrt(torch.clamp(beta_t * posterior_variance_t, min=1e-20))
                 else:
                     raise ValueError(f"未知的 variance_type: {self.variance_type}")
                 

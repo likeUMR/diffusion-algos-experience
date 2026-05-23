@@ -61,7 +61,9 @@ class TimeEmbedding(nn.Module):
         """
         # 如果时间 t 都在 [0, 1] 区间内 (如 Flow-Matching 或连续扩散)，
         # 我们依据 scale_factor 进行放大，使得正弦编码的周期频率更加合适。
-        # 对于 MeanFlow，我们将 scale_factor 设为 1.0 以避免在计算物理全导数时出现数值爆炸/量纲扭曲。
+        # 在计算 MeanFlow 的物理全导数时，PyTorch 链式法则会自动传递对叶子节点 t_grad 的偏导，
+        # 因此即使乘以 scale_factor 放大，由于 autograd 的数学链式法则性质，求导出来的 grad_t
+        # 本身依然是相对于原始物理时间 t 的真实全导数，而不会发生量纲扭曲。
         if self.scale_factor > 1.0 and t.max() <= 1.0 + 1e-5:
             t = t * self.scale_factor
             

@@ -12,6 +12,7 @@ from data_generator import ConchSpiralDataset, evaluate_manifold_metrics
 from models.mlp import ConditionalMLP
 from algorithms.ddpm import DDPM
 from algorithms.ddim import DDIM
+from algorithms.avg_ddim import AvgDDIM
 from algorithms.flow_matching import FlowMatching
 from algorithms.vdm import VDM
 from algorithms.v_learning import VLearning
@@ -23,6 +24,7 @@ from trainer import Trainer
 ALGORITHMS = {
     "ddpm": DDPM,
     "ddim": DDIM,
+    "avg_ddim": AvgDDIM,
     "vdm": VDM,
     "v_learning": VLearning,
     "flow_matching": FlowMatching,
@@ -64,7 +66,11 @@ def get_time_channels(algo_name):
     return 3 if algo_name == "mean_flow" else 1
 
 def get_model_scale_factor(algo_name):
-    return 1.0 if algo_name in ["mean_flow", "consistency_models"] else 1000.0
+    if algo_name == "consistency_models":
+        return 1.0
+    if algo_name == "mean_flow":
+        return 100.0
+    return 1000.0
 
 def set_global_seed(seed):
     random.seed(seed)
@@ -83,7 +89,7 @@ def apply_fixed_sample_steps(algo_name, algo_params, fixed_steps):
     if algo_name == "ddpm":
         # DDPM 的训练扩散链和采样链强耦合，只允许同一个步数。
         algo_params["num_steps"] = fixed_steps
-    elif algo_name in ["ddim", "v_learning", "consistency_models"]:
+    elif algo_name in ["ddim", "avg_ddim", "v_learning", "consistency_models"]:
         # 离散时间算法强制训练网格和推理采样步数一致，避免 sample_steps > num_steps 或重复索引。
         algo_params["num_steps"] = fixed_steps
         algo_params["sample_steps"] = fixed_steps
@@ -109,6 +115,104 @@ def get_forward_flops(hidden_dim=256, num_blocks=4, time_emb_dim=256, time_chann
     # output projection
     output_flops = 4 * hidden_dim + 2 * hidden_dim * 2
     return time_flops + input_flops + block_flops + output_flops
+
+def parse_hpo_report(report_path):
+    data = {}
+    if not os.path.exists(report_path):
+        return data
+    with open(report_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            data[key.strip()] = value.strip()
+    return data
+
+def find_latest_checkpoint(root_dir):
+    if not root_dir or not os.path.exists(root_dir):
+        return None
+    checkpoints = []
+    for root, _, files in os.walk(root_dir):
+        for name in files:
+            if name.endswith(".pt"):
+                checkpoints.append(os.path.join(root, name))
+    if not checkpoints:
+        return None
+    checkpoints.sort(key=lambda path: (os.path.getmtime(path), path))
+    return checkpoints[-1]
+
+def get_flow_teacher_config(config):
+    train_cfg = config.get("train", {})
+    model_cfg = config.get("model", {})
+    algo_cfg = config.get("algorithms", {})
+    results_dir = train_cfg.get("results_dir", "results")
+    report = parse_hpo_report(os.path.join(results_dir, "hpo_best_report_flow_matching_nfe_100.txt"))
+    flow_cfg = algo_cfg.get("flow_matching", {})
+
+    def get_int(key, default):
+        try:
+            return int(str(report.get(key, flow_cfg.get(key, default))).split()[0])
+        except (TypeError, ValueError):
+            return int(default)
+
+    def get_float(key, default):
+        try:
+            return float(str(report.get(key, flow_cfg.get(key, default))).split()[0])
+        except (TypeError, ValueError):
+            return float(default)
+
+    hidden_dim = get_int("hidden_dim", flow_cfg.get("hidden_dim", model_cfg.get("hidden_dim", 256)))
+    num_blocks = get_int("num_blocks", flow_cfg.get("num_blocks", model_cfg.get("num_blocks", 4)))
+    time_emb_dim = get_int("time_emb_dim", flow_cfg.get("time_emb_dim", hidden_dim))
+    epochs = get_int("epochs (自适应配平)", flow_cfg.get("epochs", train_cfg.get("epochs", 200)))
+    lr = get_float("lr", flow_cfg.get("lr", train_cfg.get("lr", 1e-3)))
+    weight_decay = get_float("weight_decay", flow_cfg.get("weight_decay", train_cfg.get("weight_decay", 1e-4)))
+    return {
+        "hidden_dim": hidden_dim,
+        "num_blocks": num_blocks,
+        "time_emb_dim": time_emb_dim,
+        "epochs": epochs,
+        "lr": lr,
+        "weight_decay": weight_decay,
+        "num_steps": 100,
+    }
+
+def prepare_flow_matching_teacher(args, config):
+    train_cfg = config.get("train", {})
+    results_dir = train_cfg.get("results_dir", "results")
+    best_teacher_dir = os.path.join(results_dir, "hpo_best_flow_matching_nfe_100")
+    checkpoint = find_latest_checkpoint(best_teacher_dir)
+    teacher_cfg = get_flow_teacher_config(config)
+
+    teacher_model = ConditionalMLP(
+        input_dim=2,
+        hidden_dim=teacher_cfg["hidden_dim"],
+        num_blocks=teacher_cfg["num_blocks"],
+        time_emb_dim=teacher_cfg["time_emb_dim"],
+        scale_factor=get_model_scale_factor("flow_matching"),
+        time_channels=get_time_channels("flow_matching")
+    )
+
+    if checkpoint is None:
+        raise FileNotFoundError(
+            "Consistency Distillation 需要直接使用已 HPO 胜出的 "
+            f"Flow Matching NFE=100 checkpoint，但在 {best_teacher_dir} 下没有找到 .pt 文件。"
+            "请先重跑 flow_matching NFE=100 HPO；当前代码会在该 HPO 中保存 best checkpoint。"
+        )
+
+    state = torch.load(checkpoint, map_location="cpu")
+    teacher_model.load_state_dict(state["model_state_dict"])
+    teacher_model.eval()
+    print(f"[*] 已加载 HPO best 100-step Flow Matching CD teacher: {checkpoint}")
+    return teacher_model
+
+def attach_cd_teacher_if_needed(algo_name, algo_instance, args, config, teacher_model=None):
+    if algo_name != "consistency_models":
+        return teacher_model
+    if teacher_model is None:
+        teacher_model = prepare_flow_matching_teacher(args, config)
+    algo_instance.set_teacher_model(teacher_model)
+    return teacher_model
 
 def run_benchmark(args, config):
     # 1. 提取基础配置与数据集配置
@@ -156,6 +260,7 @@ def run_benchmark(args, config):
     results_summary = {}
     generated_samples = {}
     loss_histories = {}
+    cd_teacher_model = None
     
     # 算力守门员 (Budget Guardrail) 基准计算 —— 严格卡训练总计算量 (Training Total FLOPs)
     benchmark_ref_algo = train_cfg.get("budget_benchmark_algorithm", "flow_matching")
@@ -178,6 +283,7 @@ def run_benchmark(args, config):
     ordered_algo_names = [
         "ddpm", 
         "ddim", 
+        "avg_ddim",
         "vdm", 
         "v_learning", 
         "flow_matching", 
@@ -188,6 +294,7 @@ def run_benchmark(args, config):
     display_names = {
         "ddpm": "DDPM",
         "ddim": "DDIM",
+        "avg_ddim": "Avg-DDIM",
         "vdm": "VDM",
         "v_learning": "V-Learning",
         "flow_matching": "Flow Matching",
@@ -287,6 +394,7 @@ def run_benchmark(args, config):
         algo_lr = float(algo_params.pop("lr", lr))
         algo_wd = float(algo_params.pop("weight_decay", weight_decay))
         algo_instance = cfg["class"](**algo_params)
+        cd_teacher_model = attach_cd_teacher_if_needed(algo_name, algo_instance, args, config, cd_teacher_model)
         
         # 3. 初始化训练器 (将 benchmark_dir 传给 Trainer 作为根保存目录，各算法会生成各自带时间戳的子文件夹)
         trainer = Trainer(
@@ -325,7 +433,7 @@ def run_benchmark(args, config):
             turns=turns, 
             n_ref_samples=50000
         )
-        print(f"[*] {cfg['display_name']} 指标评测: 距离均值={avg_dist:.6f} | 覆盖率={coverage:.2%}")
+        print(f"[*] {cfg['display_name']} 指标评测: 双向倒角距离={avg_dist:.6f} | 覆盖率={coverage:.2%}")
         
         # 6. 收集数据
         generated_samples[algo_name] = samples.cpu().numpy()
@@ -363,7 +471,10 @@ def run_benchmark(args, config):
 
     # 7. 汇总绘图：2D分布对比 (2x4 大画幅)
     print(f"\n[*] 正在绘制 2D 生成分布对比大图 ({results_dir}/benchmark_comparison.png)...")
-    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
+    total_panels = len(BENCHMARK_CONFIGS) + 1
+    ncols = 4
+    nrows = int(np.ceil(total_panels / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))
     axes = axes.flatten()
     
     # 原始数据子集
@@ -453,13 +564,13 @@ def run_benchmark(args, config):
     axes[0, 1].set_title("Sampling Time (5000 Samples)", fontsize=12, fontweight='bold')
     axes[0, 1].grid(True, axis='x', alpha=0.3)
     
-    # (1, 0): 距离流形平均距离
+    # (1, 0): 双向倒角距离 (Chamfer Distance)
     axes[1, 0].barh(y_pos, avg_dists, color='orchid', alpha=0.8, edgecolor='black')
     axes[1, 0].set_yticks(y_pos)
     axes[1, 0].set_yticklabels(algos, fontsize=10, fontweight='bold')
     axes[1, 0].invert_yaxis()
-    axes[1, 0].set_xlabel("Average Distance (lower is better)", fontsize=11)
-    axes[1, 0].set_title("Average Distance to Manifold (Dist)", fontsize=12, fontweight='bold')
+    axes[1, 0].set_xlabel("Chamfer Distance (lower is better)", fontsize=11)
+    axes[1, 0].set_title("Chamfer Distance (lower is better)", fontsize=12, fontweight='bold')
     axes[1, 0].grid(True, axis='x', alpha=0.3)
     
     # (1, 1): 流形覆盖率
@@ -482,7 +593,7 @@ def run_benchmark(args, config):
     print("\n" + "="*128)
     print("                                     第五阶段：各生成算法多维性能 and 分布质量一键评测报告")
     print("="*128)
-    header = f"| {'算法 (Algorithm)':<22} | {'专属尺寸':<8} | {'训练轮数':<8} | {'训练FLOPs(G)':<12} | {'采样NFE':<7} | {'单样本FLOPs(M)':<14} | {'训练算力偏差':<12} | {'最终Loss':<11} | {'流形均距':<10} | {'覆盖率':<8} |"
+    header = f"| {'算法 (Algorithm)':<22} | {'专属尺寸':<8} | {'训练轮数':<8} | {'训练FLOPs(G)':<12} | {'采样NFE':<7} | {'单样本FLOPs(M)':<14} | {'训练算力偏差':<12} | {'最终Loss':<11} | {'倒角距离':<10} | {'覆盖率':<8} |"
     print(header)
     print("|" + "-"*24 + "|" + "-"*10 + "|" + "-"*10 + "|" + "-"*15 + "|" + "-"*9 + "|" + "-"*16 + "|" + "-"*14 + "|" + "-"*13 + "|" + "-"*12 + "|" + "-"*10 + "|")
     for algo_name, res in results_summary.items():
@@ -498,7 +609,7 @@ def run_benchmark(args, config):
         f.write(f"本次评测运行于：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}。\n")
         f.write(f"所有算法均在 **算力守门员 (Budget Guardrail)** 严格控制 **总训练计算量** 偏差在 $\\pm 10\\%$ 内的配置下，相互独立进行极限调优后的巅峰对决。\n\n")
         f.write("## 1. 性能与分布质量指标对比汇总表\n\n")
-        f.write("| 算法 (Algorithm) | 专属尺寸 (H x B) | 训练轮数 (Epochs) | 训练总 FLOPs | 采样 NFE (步) | 单样本生成 FLOPs | 训练算力偏差 | 最终 Loss | 平均流形距离 (Manifold Dist) | 流形覆盖率 (Coverage) | 模型参数量 (Params) |\n")
+        f.write("| 算法 (Algorithm) | 专属尺寸 (H x B) | 训练轮数 (Epochs) | 训练总 FLOPs | 采样 NFE (步) | 单样本生成 FLOPs | 训练算力偏差 | 最终 Loss | 双向倒角距离 (Chamfer Dist) | 流形覆盖率 (Coverage) | 模型参数量 (Params) |\n")
         f.write("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n")
         for algo_name, res in results_summary.items():
             f.write(f"| **{res['display_name']}** | {res['hidden_dim']}x{res['num_blocks']} | {res['epochs']} | {res['train_total_flops']/1e9:.2f}G | {res['nfe']} | {res['sample_flops_per_sample']/1e6:.2f}M | {res['budget_deviation']:+.2%} | {res['final_loss']:.6f} | {res['avg_dist']:.6f} | {res['coverage']:.2%} | {res['params_count']:,} |\n")
@@ -506,9 +617,9 @@ def run_benchmark(args, config):
         f.write("## 2. 可视化生成图表说明\n\n")
         f.write("- **算法生成数据分布对比**：详见 `results/benchmark_comparison.png`，直观比较各算法对于 2D “海螺线” 复杂非线性流形的逼近 and 拟合效果。\n")
         f.write("- **Loss 曲线对比图**：详见 `results/loss_comparison.png`，展示不同算法的收敛速度和收敛平稳度。\n")
-        f.write("- **训练与采样效率指标直方图**：详见 `results/metrics_comparison.png`，整合了耗时、流形均距和区间覆盖率，多维度综合对比。\n\n")
+        f.write("- **训练与采样效率指标直方图**：详见 `results/metrics_comparison.png`，整合了耗时、倒角距离和区间覆盖率，多维度综合对比。\n\n")
         f.write("## 3. 评测指标解释\n\n")
-        f.write("1. **平均流形距离 (Manifold Distance)**: 计算生成点云中每个点到真实 1D 流形（完美无噪海螺线）的最短欧氏距离的平均值，值越小表示模型生成的样本越贴近真实流形，模型泛化与拟合精度越强。\n")
+        f.write("1. **双向倒角距离 (Chamfer Distance)**: 即（生成->真实）最短距离均值与（真实->生成）最短距离均值的加和，兼顾生成样本真实感与分布完整度（防止模式坍缩），越小越好。\n")
         f.write("2. **流形覆盖率 (Coverage)**: 投影一维流形 100 个等宽区间中，有多少比例 of 区间包含至少一个生成的投影点。用来度量模型是否有“断点”、“空洞”或未覆盖区域，越接近 100% 说明模型生成的流形越完整。\n")
     print(f"[*] 精美 Benchmark 评估 Markdown 报告已成功输出 to: {report_path}\n")
 
@@ -588,6 +699,9 @@ def run_hpo(args, config):
     print(f"[*] HPO 实验母文件夹: {hpo_session_dir}")
     print(f"[*] Optuna 持久化数据库: {storage_path}")
     print("-"*80)
+    cd_teacher_model = None
+    if args.algorithm == "consistency_models":
+        cd_teacher_model = prepare_flow_matching_teacher(args, config)
         
     def objective(trial):
         # A. 采样网络超参
@@ -596,43 +710,48 @@ def run_hpo(args, config):
         time_emb_dim = hidden_dim # 保持时间嵌入维度与隐藏层维度一致
         
         # B. 采样优化超参（算力无关参数，对流形收敛至关重要！）
-        trial_lr = trial.suggest_float("lr", 3e-4, 3e-3, log=True)
-        trial_wd = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
+        trial_lr = trial.suggest_float("lr", 1e-5, 5e-3, log=True)
+        trial_wd = trial.suggest_float("weight_decay", 1e-8, 1e-2, log=True)
         trial_algo_params = algo_params_base.copy()
 
         if args.algorithm == "ddpm":
             if args.fixed_sample_steps is None:
                 trial_algo_params["num_steps"] = trial.suggest_categorical("num_steps", [50, 80, 100, 150])
-            trial_algo_params["beta_start"] = trial.suggest_categorical("beta_start", [1e-5, 1e-4, 5e-4])
-            trial_algo_params["beta_end"] = trial.suggest_categorical("beta_end", [0.08, 0.12, 0.16, 0.20])
-            trial_algo_params["variance_type"] = trial.suggest_categorical("variance_type", ["fixed_small", "fixed_large"])
-        elif args.algorithm == "ddim":
+            trial_algo_params["beta_start"] = trial.suggest_float("beta_start", 1e-6, 1e-3, log=True)
+            trial_algo_params["beta_end"] = trial.suggest_float("beta_end", 0.03, 0.3, log=True)
+            trial_algo_params["variance_type"] = "fixed_geometric"
+        elif args.algorithm in ["ddim", "avg_ddim"]:
             if args.fixed_sample_steps is None:
                 trial_num_steps = trial.suggest_categorical("num_steps", [50, 80, 100, 150])
                 trial_sample_ratio = trial.suggest_categorical("sample_step_ratio", [0.5, 0.8, 1.0])
                 trial_algo_params["num_steps"] = trial_num_steps
                 trial_algo_params["sample_steps"] = max(1, int(trial_num_steps * trial_sample_ratio))
-            trial_algo_params["eta"] = trial.suggest_categorical("eta", [0.0, 0.1, 0.3])
-            trial_algo_params["beta_start"] = trial.suggest_categorical("beta_start", [1e-5, 1e-4, 5e-4])
-            trial_algo_params["beta_end"] = trial.suggest_categorical("beta_end", [0.08, 0.12, 0.16, 0.20])
+            trial_algo_params["eta"] = 0.0
+            trial_algo_params["beta_start"] = trial.suggest_float("beta_start", 1e-6, 1e-3, log=True)
+            trial_algo_params["beta_end"] = trial.suggest_float("beta_end", 0.03, 0.3, log=True)
+            if args.algorithm == "avg_ddim":
+                trial_algo_params.setdefault("avg_k", 30)
+                trial_algo_params.setdefault("gaussian_candidate_sampling", False)
+                trial_algo_params.setdefault("gaussian_candidate_std", 0.3)
+                trial_algo_params.setdefault("gaussian_candidate_proposals", 256)
         elif args.algorithm == "vdm":
             if args.fixed_sample_steps is None:
                 trial_algo_params["num_steps"] = trial.suggest_categorical("num_steps", [50, 80, 100, 150])
-            trial_algo_params["gamma_min"] = trial.suggest_categorical("gamma_min", [-6.0, -5.5, -5.0, -4.5, -4.0])
-            trial_algo_params["gamma_max"] = trial.suggest_categorical("gamma_max", [4.0, 4.5, 5.0, 5.5, 6.0])
-            trial_algo_params["schedule_power"] = trial.suggest_categorical("schedule_power", [0.7, 1.0, 1.5, 2.0])
-            trial_algo_params["loss_weighting"] = trial.suggest_categorical("loss_weighting", ["uniform", "min_snr"])
-            trial_algo_params["min_snr_gamma"] = trial.suggest_categorical("min_snr_gamma", [1.0, 3.0, 5.0])
-            trial_algo_params["x0_clip"] = trial.suggest_categorical("x0_clip", [2.0, 3.0, 5.0, 10.0])
+            trial_algo_params["sigma_min"] = 0.002
+            trial_algo_params["sigma_max"] = 80.0
+            trial_algo_params["p_mean"] = trial.suggest_float("p_mean", -1.5, -1.0)
+            trial_algo_params["p_std"] = trial.suggest_float("p_std", 1.0, 1.6)
+            trial_algo_params["loss_weighting"] = "edm_weighting"
+            trial_algo_params["sampler_rho"] = 7.0
         elif args.algorithm == "v_learning":
             if args.fixed_sample_steps is None:
                 trial_num_steps = trial.suggest_categorical("num_steps", [50, 80, 100, 150])
                 trial_sample_ratio = trial.suggest_categorical("sample_step_ratio", [0.5, 0.8, 1.0])
                 trial_algo_params["num_steps"] = trial_num_steps
                 trial_algo_params["sample_steps"] = max(1, int(trial_num_steps * trial_sample_ratio))
-            trial_algo_params["eta"] = trial.suggest_categorical("eta", [0.0, 0.1, 0.3])
-            trial_algo_params["beta_start"] = trial.suggest_categorical("beta_start", [1e-5, 1e-4, 5e-4])
-            trial_algo_params["beta_end"] = trial.suggest_categorical("beta_end", [0.08, 0.12, 0.16, 0.20])
+            trial_algo_params["eta"] = 0.0
+            trial_algo_params["beta_start"] = trial.suggest_float("beta_start", 1e-6, 1e-3, log=True)
+            trial_algo_params["beta_end"] = trial.suggest_float("beta_end", 0.03, 0.3, log=True)
         elif args.algorithm == "flow_matching":
             if args.fixed_sample_steps is None:
                 trial_algo_params["num_steps"] = trial.suggest_categorical("num_steps", [20, 50, 80, 100])
@@ -640,9 +759,12 @@ def run_hpo(args, config):
             if args.fixed_sample_steps is None:
                 trial_algo_params["num_steps"] = trial.suggest_categorical("num_steps", [8, 16, 32, 50])
                 trial_algo_params["sample_steps"] = trial.suggest_categorical("sample_steps", [1, 3, 5])
-            trial_algo_params["ema_decay"] = trial.suggest_categorical("ema_decay", [0.90, 0.92, 0.95, 0.98, 0.99])
-            trial_algo_params["sigma_data"] = trial.suggest_categorical("sigma_data", [0.3, 0.5, 0.7])
-            trial_algo_params["sigma_max"] = trial.suggest_categorical("sigma_max", [1.0, 1.5, 2.0, 3.0])
+            ema_decay_gap = trial.suggest_float("ema_decay_gap", 1e-3, 1e-1, log=True)
+            trial_algo_params["ema_decay"] = 1.0 - ema_decay_gap
+            trial_algo_params["sigma_data"] = trial.suggest_float("sigma_data", 0.2, 1.0)
+            trial_algo_params["sigma_max"] = 1.0
+            trial_algo_params["distillation_steps"] = 100
+            trial_algo_params["training_mode"] = "cd"
         elif args.algorithm == "mean_flow":
             trial_algo_params["p"] = trial.suggest_categorical("p", [0.0, 0.5, 1.0])
             trial_algo_params["c"] = trial.suggest_float("c", 1e-4, 1e-2, log=True)
@@ -655,6 +777,18 @@ def run_hpo(args, config):
             trial_algo_params["full_interval_prob"] = trial.suggest_categorical(
                 "full_interval_prob",
                 [0.1, 0.25, 0.5]
+            )
+            trial_algo_params["warmup_ratio"] = trial.suggest_categorical(
+                "warmup_ratio",
+                [0.2, 0.35, 0.5]
+            )
+            trial_algo_params["jvp_ramp_ratio"] = trial.suggest_categorical(
+                "jvp_ramp_ratio",
+                [0.25, 0.35, 0.5]
+            )
+            trial_algo_params["max_jvp_weight"] = trial.suggest_categorical(
+                "max_jvp_weight",
+                [0.25, 0.5, 1.0]
             )
             
         trial_algo_params = apply_fixed_sample_steps(args.algorithm, trial_algo_params, args.fixed_sample_steps)
@@ -719,8 +853,10 @@ def run_hpo(args, config):
                     backup_source=False,
                     seed=repeat_seed
                 )
+                attach_cd_teacher_if_needed(args.algorithm, algo_instance, args, config, cd_teacher_model)
                 
-                trainer.train(epochs=algo_epochs, plot_nodes=4, save_nodes=0)
+                hpo_save_nodes = 1 if args.algorithm == "flow_matching" and args.fixed_sample_steps == 100 else 0
+                trainer.train(epochs=algo_epochs, plot_nodes=4, save_nodes=hpo_save_nodes)
                 if not trainer.loss_history or not np.isfinite(trainer.loss_history[-1]):
                     raise FloatingPointError(f"训练 Loss 非有限值: {trainer.loss_history[-1] if trainer.loss_history else 'empty'}")
                 
@@ -734,7 +870,7 @@ def run_hpo(args, config):
                 if not np.isfinite(avg_dist):
                     raise FloatingPointError(f"评估指标非有限值: {avg_dist}")
                 repeat_dists.append(avg_dist)
-                print(f"[Trial {trial.number:02d} | Seed {repeat_seed}] 评估结果 | 1D真实流形均距 = {avg_dist:.6f}")
+                print(f"[Trial {trial.number:02d} | Seed {repeat_seed}] 评估结果 | 双向倒角距离 (Chamfer Dist) = {avg_dist:.6f}")
         except Exception as exc:
             penalty = 1e6
             trial.set_user_attr("failure_reason", repr(exc))
@@ -790,7 +926,7 @@ def run_hpo(args, config):
         }
         with open(trial_results_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(trial_record, ensure_ascii=False) + "\n")
-        print(f"[Trial {trial.number:02d}] 平均评估结果 | Mean Manifold Distance = {mean_dist:.6f}")
+        print(f"[Trial {trial.number:02d}] 平均评估结果 | Mean Chamfer Distance = {mean_dist:.6f}")
         
         return mean_dist # 优化目标不变：平均流形距离越小越好
         
@@ -854,7 +990,7 @@ def run_hpo(args, config):
     if args.fixed_sample_steps is not None:
         print(f"[*] 固定 NFE  : {args.fixed_sample_steps}")
     print(f"[*] 最佳试验组 : Trial {best_trial.number}")
-    print(f"[*] 最佳流形距离 (Manifold Distance): {best_trial.value:.6f}")
+    print(f"[*] 最佳倒角距离 (Chamfer Distance): {best_trial.value:.6f}")
     print(f"[*] 调出极限参数组合:")
     for k, v in best_trial.params.items():
         if k in ["lr", "weight_decay"]:
@@ -886,7 +1022,7 @@ def run_hpo(args, config):
         f.write(f"随机种子基准: {args.seed}\n")
         f.write(f"每个 Trial 重复次数: {args.hpo_repeats}\n")
         f.write(f"目标算力天花板预算: {target_flops/1e9:.2f}G FLOPs\n")
-        f.write(f"最佳 1D 流形均距 (Manifold Dist): {best_trial.value:.6f}\n\n")
+        f.write(f"最佳双向倒角距离 (Chamfer Dist): {best_trial.value:.6f}\n\n")
         f.write(f"最佳极限超参组合:\n")
         f.write(f"  hidden_dim        : {opt_h}\n")
         f.write(f"  num_blocks        : {opt_b}\n")
@@ -1010,6 +1146,7 @@ def main():
     
     # 4. 初始化算法组件
     algorithm = algorithm_class(**algo_params)
+    attach_cd_teacher_if_needed(args.algorithm, algorithm, args, config)
     
     # 4. 初始化模块化训练器 (自动创建带时间戳的实验专属目录，并备份代码和配置)
     trainer = Trainer(

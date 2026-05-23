@@ -1,0 +1,7 @@
+=== Old vs New MeanFlow 严格对齐评估报告 ===
+训练总算力 (老模型): 6.7572G FLOPs
+训练总算力 (新模型): 6.7572G FLOPs
+老模型 (scale_factor=1.0) 最终双向倒角距离 (Chamfer): 0.101050
+老模型 (scale_factor=1.0) 流形覆盖率: 100.00%
+新模型 (scale_factor=1000.0) 最终双向倒角距离 (Chamfer): 0.110608
+新模型 (scale_factor=1000.0) 流形覆盖率: 100.00%

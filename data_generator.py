@@ -54,8 +54,8 @@ def generate_conch_spiral(n_samples=20000, noise=0.0, turns=3.0):
 
 def evaluate_manifold_metrics(generated_points, turns=3.0, n_ref_samples=50000):
     """
-    计算两个指标：
-    1. Average Distance: 每个生成的点到真实一维流形（海螺线）的最短距离的平均值。
+    计算三个指标：
+    1. Chamfer Distance: 双向倒角距离，即 (生->熟) 平均最短距离与 (熟->生) 平均最短距离的和。能有效解决模式坍缩问题。
     2. Uniformity (Entropy): 投影到流形后，各个区域的分布均匀程度。
        我们计算投影点在一维流形参数 [0, 1] 上的归一化 Shannon 熵，值在 [0, 1] 之间，越接近 1.0 表示分布越均匀。
        同时返回 Coverage: 100个等宽区间中，有多少比例的区间包含至少一个生成的投影点，用来反映是否生成完整、有无空洞。
@@ -66,7 +66,7 @@ def evaluate_manifold_metrics(generated_points, turns=3.0, n_ref_samples=50000):
         n_ref_samples (int): 真实一维流形的参考采样点数（采样越密，度量越精准，默认 50000）。
         
     返回:
-        avg_dist (float): 平均距离。
+        chamfer_dist (float): 双向倒角距离。
         uniformity (float): 投影均匀程度（归一化熵）。
         coverage (float): 区间覆盖率。
     """
@@ -99,8 +99,24 @@ def evaluate_manifold_metrics(generated_points, turns=3.0, n_ref_samples=50000):
     min_dists = torch.cat(min_dists, dim=0)
     proj_indices = torch.cat(proj_indices, dim=0)
     
-    # 1. 距离指标：平均最短距离
-    avg_dist = torch.mean(min_dists).item()
+    # 1. (A) Fidelity distance (生 -> 熟): 每个生成点到最近真实流形点的距离的平均值
+    fidelity_dist = torch.mean(min_dists).item()
+    
+    # (B) Coverage distance (熟 -> 生): 每个真实流形点到最近生成点的距离的平均值
+    # 由于 ref_points 较大，我们同样进行分批，以保持内存友好
+    min_dists_ref = []
+    ref_batch_size = 1000
+    for i in range(0, n_ref_samples, ref_batch_size):
+        batch_ref = ref_points[i:i+ref_batch_size]
+        dists_ref = torch.cdist(batch_ref, generated_points)
+        batch_min_dists_ref, _ = torch.min(dists_ref, dim=1)
+        min_dists_ref.append(batch_min_dists_ref)
+        
+    min_dists_ref = torch.cat(min_dists_ref, dim=0)
+    coverage_dist = torch.mean(min_dists_ref).item()
+    
+    # 双向倒角距离 = fidelity_dist + coverage_dist
+    chamfer_dist = fidelity_dist + coverage_dist
     
     # 2. 均匀度指标：将最近邻索引映射为一维参数 u_proj \in [0, 1]
     # 因为参考流形是用 linspace(0, 1, n_ref_samples) 生成的，它的索引 index 直接线性对应 u
@@ -121,7 +137,7 @@ def evaluate_manifold_metrics(generated_points, turns=3.0, n_ref_samples=50000):
     max_entropy = np.log(num_bins)
     uniformity = float(entropy / max_entropy) if max_entropy > 0 else 0.0
     
-    return avg_dist, uniformity, coverage
+    return chamfer_dist, uniformity, coverage
 
 class ConchSpiralDataset(Dataset):
     """

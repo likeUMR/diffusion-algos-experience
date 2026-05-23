@@ -102,7 +102,7 @@
 * **物理采样(不卡算力)**：
   * **`num_steps` (采样)**: **`100` 步**。
   * **`beta_end`**: `0.16`（必须通过拉高终点 beta 彻底清除噪声偏置）。
-  * **`variance_type`**: 锁死为 `"fixed_small"`。
+  * **`variance_type`**: 锁死为 `"fixed_geometric"`，在 `fixed_small` 与 `fixed_large` 的方差之间取几何平均。
 
 ---
 
@@ -124,8 +124,12 @@
 * **极限优化超参**：
   * **`lr`**: 极其严格控制在 `7.5e-4 ~ 9e-4`。
   * **`weight_decay`**: `1e-6` 极小（因为变分 VLB 损失自带强约束，过大 WD 会使模型失去表达复杂拓扑的能力）。
-* **物理参数**：
-  * `gamma_min`: `-4.8` | `gamma_max`: `4.8`。
+* **Karras EDM 物理参数**：
+  * `sigma_min`: 固定为 `0.002` | `sigma_max`: 固定为 `80.0`。
+  * `p_mean`: 在 `-1.5 ~ -1.0` 之间线性 HPO，控制训练噪声中心。
+  * `p_std`: 在 `1.0 ~ 1.6` 之间线性 HPO，控制训练噪声宽度。
+  * `loss_weighting`: 固定为 `edm_weighting`。
+  * `sampler_rho`: 固定为 `7.0`。
 
 ---
 
@@ -155,10 +159,13 @@
 * **极限优化超参**：
   * **`lr`**: `1.2e-3`。
   * **`weight_decay`**: `1e-5`。
-* **物理参数与采样(不卡算力)**：
-  * **`sample_steps` (采样)**: **`3` 步** 或 **`5` 步** (使用 3~5 步的少步数快速迭代积分修正，可以彻底校正单步自一致误差，获得远超 1 步的巅峰效果)。
-  * **`ema_decay`**: 在 150 epochs 的短训练下，**必须调小至 `0.92 ~ 0.95`**。
-  * **`sigma_data`**: 锁定为 `0.5`。
+* **CD 蒸馏参数与采样(不卡算力)**：
+  * **训练模式**: 固定为 `training_mode: cd`，不再使用从头 CT 自训练。
+  * **Teacher**: 固定蒸馏 **100 步 Flow Matching** teacher；因此批量 HPO 中 Consistency Models 必须排在 Flow Matching 之后。
+  * **`sample_steps` (采样)**: **`1`、`3` 或 `5` 步**，用于检验 CD student 在极低 NFE 下的压缩能力。
+  * **`ema_decay`**: 仍作为 CD 的 EMA student target 使用，推荐通过 `1 - ema_decay` 的 log gap 搜索。
+  * **`sigma_data`**: 连续搜索 `0.2 ~ 1.0`。
+  * **`sigma_max`**: 固定为 `1.0`，匹配 Flow Matching teacher 的标准高斯起点。
 
 ---
 

@@ -8,12 +8,15 @@ import math
 ALGORITHMS = [
     "ddpm",
     "ddim",
+    "avg_ddim",
     "vdm",
     "v_learning",
+    # Consistency Models 使用 100-step Flow Matching 做 CD teacher，必须排在 flow_matching 之后。
     "flow_matching",
     "consistency_models",
     "mean_flow"
 ]
+# 固定按高到低 NFE 跑，保证 NFE=100 的 Flow Matching teacher 优先产出。
 NFE_BUCKETS = [100, 20, 5, 1]
 
 def parse_valid_distance(value):
@@ -30,7 +33,7 @@ def report_has_valid_result(report_file):
         return False
     with open(report_file, "r", encoding="utf-8") as f:
         for line in f:
-            if "Manifold" in line or "1D" in line or "均距" in line:
+            if "Manifold" in line or "1D" in line or "均距" in line or "Chamfer" in line or "倒角" in line:
                 _, _, value = line.partition(":")
                 if parse_valid_distance(value.strip()) is not None:
                     return True
@@ -71,10 +74,10 @@ def generate_master_report(nfe_buckets):
     master_report_path = os.path.join(results_dir, "hpo_master_report.md")
     
     master_content = []
-    master_content.append("# 7 大生成算法：固定 NFE 成本感知 HPO 成果汇总\n")
+    master_content.append("# 8 大生成算法：固定 NFE 成本感知 HPO 成果汇总\n")
     master_content.append(f"汇总时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n")
-    master_content.append("每个单元格为对应算法在固定推理 NFE 下独立 HPO 得到的最佳平均流形距离。\n\n")
-    master_content.append("| NFE | 算法 (Algorithm) | 最佳尺寸 (H x B) | 最佳自适应 Epochs | 最佳学习率 (lr) | 最佳权重衰减 (WD) | 极限流形均距 (Manifold Dist) |\n")
+    master_content.append("每个单元格为对应算法在固定推理 NFE 下独立 HPO 得到的最佳平均双向倒角距离 (Chamfer Distance)。\n\n")
+    master_content.append("| NFE | 算法 (Algorithm) | 最佳尺寸 (H x B) | 最佳自适应 Epochs | 最佳学习率 (lr) | 最佳权重衰减 (WD) | 最佳双向倒角距离 (Chamfer Dist) |\n")
     master_content.append("| :---: | :--- | :---: | :---: | :---: | :---: | :---: |\n")
     
     summary_list = []
@@ -99,11 +102,11 @@ def generate_master_report(nfe_buckets):
                 opt_epochs = data.get("epochs (自适应配平)", data.get("epochs", "N/A"))
                 opt_lr = data.get("lr", "N/A")
                 opt_wd = data.get("weight_decay", "N/A")
-                opt_dist = data.get("最佳 1D 流形均距 (Manifold Dist)", "N/A")
+                opt_dist = data.get("最佳双向倒角距离 (Chamfer Dist)", data.get("最佳 1D 流形均距 (Manifold Dist)", "N/A"))
                 
                 if opt_dist == "N/A":
                     for key, val in data.items():
-                        if "Manifold" in key or "1D" in key or "均距" in key:
+                        if "Manifold" in key or "1D" in key or "均距" in key or "Chamfer" in key or "倒角" in key:
                             opt_dist = val
                             break
                 parsed_dist = parse_valid_distance(opt_dist)
@@ -118,12 +121,17 @@ def generate_master_report(nfe_buckets):
                 master_content.append(f"| **{nfe}** | **{algo.upper()}** | N/A | N/A | N/A | N/A | N/A (未完成调参) |\n")
 
     matrix_csv_path, heatmap_path = generate_matrix_outputs(results_dir, nfe_buckets, matrix_dist)
+    overview_paths = generate_nfe_overview_outputs(results_dir, nfe_buckets)
     master_content.append("\n## 固定 NFE 最终矩阵图\n\n")
     master_content.append(f"- 矩阵 CSV: `{os.path.basename(matrix_csv_path)}`\n")
     if heatmap_path:
         master_content.append(f"- 矩阵热力图: `{os.path.basename(heatmap_path)}`\n")
     else:
         master_content.append("- 矩阵热力图: 暂未生成，当前没有可用的成功 HPO 单元格。\n")
+    if overview_paths:
+        master_content.append("\n## 每个 NFE 的最佳 Trial 图像总览\n\n")
+        for path in overview_paths:
+            master_content.append(f"- `{os.path.basename(path)}`\n")
 
     with open(master_report_path, "w", encoding="utf-8") as f:
         f.writelines(master_content)
@@ -132,7 +140,7 @@ def generate_master_report(nfe_buckets):
     print("="*80)
     print("                      [HPO PANEL] 极限调参最优配置对决面板")
     print("="*80)
-    print(f"| {'算法 (Algorithm)':<20} | {'尺寸 (H x B)':<11} | {'自适应Epochs':<13} | {'最佳学习率 (lr)':<15} | {'最佳权重衰减 (WD)':<16} | {'流形均距 (Dist)':<16} |")
+    print(f"| {'算法 (Algorithm)':<20} | {'尺寸 (H x B)':<11} | {'自适应Epochs':<13} | {'最佳学习率 (lr)':<15} | {'最佳权重衰减 (WD)':<16} | {'倒角距离 (Dist)':<16} |")
     print("-"*100)
     for row in summary_list:
         print(f"| NFE={row[0]:<4} | {row[1]:<20} | {row[2]:<11} | {row[3]:<13} | {row[4]:<15} | {row[5]:<16} | {row[6]:<16} |")
@@ -141,15 +149,16 @@ def generate_master_report(nfe_buckets):
 def generate_matrix_outputs(results_dir, nfe_buckets, matrix_dist):
     """
     根据 7 算法 x 固定 NFE 的最佳 HPO 报告，生成最终矩阵 CSV 与热力图。
-    单元格值为最佳平均 Manifold Distance，越低越好。
+    单元格值为最佳双向倒角距离 (Chamfer Distance)，越低越好。
     """
     os.makedirs(results_dir, exist_ok=True)
     matrix_csv_path = os.path.join(results_dir, "hpo_matrix_dist.csv")
     heatmap_path = os.path.join(results_dir, "hpo_matrix_heatmap.png")
+    ordered_nfes = list(nfe_buckets)
 
     with open(matrix_csv_path, "w", encoding="utf-8") as f:
         f.write("NFE," + ",".join(ALGORITHMS) + "\n")
-        for nfe in nfe_buckets:
+        for nfe in ordered_nfes:
             values = []
             for algo in ALGORITHMS:
                 value = matrix_dist[nfe].get(algo)
@@ -169,8 +178,8 @@ def generate_matrix_outputs(results_dir, nfe_buckets, matrix_dist):
         import numpy as np
         import matplotlib.pyplot as plt
 
-        raw = np.full((len(nfe_buckets), len(ALGORITHMS)), np.nan, dtype=float)
-        for row_idx, nfe in enumerate(nfe_buckets):
+        raw = np.full((len(ordered_nfes), len(ALGORITHMS)), np.nan, dtype=float)
+        for row_idx, nfe in enumerate(ordered_nfes):
             for col_idx, algo in enumerate(ALGORITHMS):
                 value = matrix_dist[nfe].get(algo)
                 if value is not None and value > 0 and math.isfinite(value):
@@ -184,20 +193,20 @@ def generate_matrix_outputs(results_dir, nfe_buckets, matrix_dist):
         im = ax.imshow(masked_values, cmap="viridis_r", aspect="auto")
         ax.set_xticks(range(len(ALGORITHMS)))
         ax.set_xticklabels([algo.upper() for algo in ALGORITHMS], rotation=30, ha="right")
-        ax.set_yticks(range(len(nfe_buckets)))
-        ax.set_yticklabels([str(nfe) for nfe in nfe_buckets])
+        ax.set_yticks(range(len(ordered_nfes)))
+        ax.set_yticklabels([str(nfe) for nfe in ordered_nfes])
         ax.set_xlabel("Algorithm")
         ax.set_ylabel("Fixed NFE")
-        ax.set_title("HPO Best Manifold Distance Matrix (lower is better)")
+        ax.set_title("HPO Best Chamfer Distance Matrix (lower is better)")
 
-        for row_idx in range(len(nfe_buckets)):
+        for row_idx in range(len(ordered_nfes)):
             for col_idx in range(len(ALGORITHMS)):
                 value = raw[row_idx, col_idx]
                 label = "N/A" if np.isnan(value) else f"{value:.4g}"
                 ax.text(col_idx, row_idx, label, ha="center", va="center", color="white", fontsize=8)
 
         cbar = fig.colorbar(im, ax=ax)
-        cbar.set_label("log10(Manifold Distance)")
+        cbar.set_label("log10(Chamfer Distance)")
         fig.tight_layout()
         fig.savefig(heatmap_path, dpi=200, bbox_inches="tight")
         plt.close(fig)
@@ -207,6 +216,123 @@ def generate_matrix_outputs(results_dir, nfe_buckets, matrix_dist):
     except Exception as exc:
         print(f"[!] 矩阵热力图生成失败，仅保留 CSV: {exc!r}")
         return matrix_csv_path, None
+
+def parse_summary_metric(summary_path, metric_name):
+    if not os.path.exists(summary_path):
+        return None
+    with open(summary_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if metric_name in line:
+                _, _, value = line.partition(":")
+                return parse_valid_distance(value.strip().rstrip("%"))
+    return None
+
+def find_best_run_dir(results_dir, algo, nfe):
+    best_root = os.path.join(results_dir, f"hpo_best_{algo}_nfe_{nfe}")
+    if not os.path.exists(best_root):
+        return None
+
+    candidates = []
+    for root, _, files in os.walk(best_root):
+        if "result_summary.txt" not in files:
+            continue
+        summary_path = os.path.join(root, "result_summary.txt")
+        dist = parse_summary_metric(summary_path, "Chamfer Distance")
+        if dist is None:
+            dist = parse_summary_metric(summary_path, "Manifold Distance")
+        if dist is None:
+            dist = float("inf")
+        candidates.append((dist, root))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    return candidates[0][1]
+
+def find_latest_generation_image(run_dir):
+    if run_dir is None:
+        return None
+    generation_files = [
+        os.path.join(run_dir, name)
+        for name in os.listdir(run_dir)
+        if name.startswith("generation_epoch_") and name.endswith(".png")
+    ]
+    if not generation_files:
+        return None
+
+    def epoch_key(path):
+        name = os.path.basename(path)
+        stem = os.path.splitext(name)[0]
+        try:
+            return int(stem.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            return -1
+
+    generation_files.sort(key=epoch_key)
+    return generation_files[-1]
+
+def collect_overview_images(results_dir, nfe, image_kind):
+    images = []
+    for algo in ALGORITHMS:
+        run_dir = find_best_run_dir(results_dir, algo, nfe)
+        if image_kind == "generation":
+            image_path = find_latest_generation_image(run_dir)
+        else:
+            filename = "loss_curve.png" if image_kind == "loss" else "metrics_curve.png"
+            image_path = os.path.join(run_dir, filename) if run_dir else None
+            if image_path and not os.path.exists(image_path):
+                image_path = None
+        images.append((algo, image_path))
+    return images
+
+def save_overview_grid(results_dir, nfe, image_kind, output_name, title):
+    try:
+        import matplotlib.image as mpimg
+        import matplotlib.pyplot as plt
+    except Exception as exc:
+        print(f"[!] 无法导入 matplotlib，跳过 {output_name}: {exc!r}")
+        return None
+
+    images = collect_overview_images(results_dir, nfe, image_kind)
+    if not any(path for _, path in images):
+        print(f"[!] NFE={nfe} 缺少 {image_kind} 图像，跳过总览图。")
+        return None
+
+    fig, axes = plt.subplots(2, 4, figsize=(22, 11))
+    axes = axes.flatten()
+    for idx, (algo, image_path) in enumerate(images):
+        ax = axes[idx]
+        ax.axis("off")
+        ax.set_title(algo.upper(), fontsize=12, fontweight="bold")
+        if image_path is None:
+            ax.text(0.5, 0.5, "Missing", ha="center", va="center", fontsize=14)
+            continue
+        img = mpimg.imread(image_path)
+        ax.imshow(img)
+
+    for idx in range(len(images), len(axes)):
+        axes[idx].axis("off")
+
+    fig.suptitle(title, fontsize=16, fontweight="bold", y=0.98)
+    fig.tight_layout()
+    output_path = os.path.join(results_dir, output_name)
+    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[OK] 已生成 NFE={nfe} 总览图: {output_path}")
+    return output_path
+
+def generate_nfe_overview_outputs(results_dir, nfe_buckets):
+    output_paths = []
+    for nfe in nfe_buckets:
+        specs = [
+            ("generation", f"hpo_nfe_{nfe}_generation_overview.png", f"NFE={nfe} Best Trial Generation Overview"),
+            ("loss", f"hpo_nfe_{nfe}_loss_overview.png", f"NFE={nfe} Best Trial Loss Curves"),
+            ("metrics", f"hpo_nfe_{nfe}_metrics_overview.png", f"NFE={nfe} Best Trial Metric Curves"),
+        ]
+        for image_kind, output_name, title in specs:
+            output_path = save_overview_grid(results_dir, nfe, image_kind, output_name, title)
+            if output_path:
+                output_paths.append(output_path)
+    return output_paths
 
 def main():
     parser = argparse.ArgumentParser(description="固定 NFE 分桶批量 HPO")

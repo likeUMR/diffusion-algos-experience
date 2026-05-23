@@ -41,6 +41,8 @@ class Trainer:
         self.model = model.to(self.device)
         self.algorithm = algorithm
         self.dataset = dataset
+        if hasattr(self.algorithm, "set_data_bank") and hasattr(dataset, "data"):
+            self.algorithm.set_data_bank(dataset.data)
         
         # 3. 创建 DataLoader
         dataloader_generator = None
@@ -164,6 +166,8 @@ class Trainer:
         avg_loss = 0.0  # 声明外层变量
         for epoch in range(1, epochs + 1):
             self.model.train()
+            if hasattr(self.algorithm, "set_training_progress"):
+                self.algorithm.set_training_progress(epoch, epochs)
             epoch_loss = 0.0
             num_batches = 0
             
@@ -232,7 +236,7 @@ class Trainer:
             turns=turns,
             n_ref_samples=50000
         )
-        print(f"    [评估结果] 距离一维流形均距: {avg_dist:.6f} | 投影分步均匀度 (Entropy): {uniformity:.4f} | 流形覆盖率: {coverage:.2%}")
+        print(f"    [评估结果] 双向倒角距离 (Chamfer Dist): {avg_dist:.6f} | 投影分步均匀度 (Entropy): {uniformity:.4f} | 流形覆盖率: {coverage:.2%}")
         
         # 记录评估指标，用于后期绘制指标曲线
         self.metric_epochs.append(epoch)
@@ -270,7 +274,7 @@ class Trainer:
         # 总标题
         plt.suptitle(
             f"Epoch: {epoch} | Loss: {current_loss:.6f}\n"
-            f"Manifold Distance: {avg_dist:.6f} | Coverage: {coverage:.2%}",
+            f"Chamfer Distance: {avg_dist:.6f} | Coverage: {coverage:.2%}",
             fontsize=12, y=0.98
         )
         plt.tight_layout()
@@ -332,9 +336,9 @@ class Trainer:
             
         fig, axes = plt.subplots(1, 3, figsize=(18, 5))
         
-        # 1. 距离一维流形均距 (Manifold Distance)
-        axes[0].plot(self.metric_epochs, self.dist_history, color='crimson', marker='o', linewidth=1.5, label='Manifold Distance')
-        axes[0].set_title("Manifold Distance Curve", fontsize=11, fontweight='bold')
+        # 1. 双向倒角距离 (Chamfer Distance)
+        axes[0].plot(self.metric_epochs, self.dist_history, color='crimson', marker='o', linewidth=1.5, label='Chamfer Distance')
+        axes[0].set_title("Chamfer Distance Curve", fontsize=11, fontweight='bold')
         axes[0].set_xlabel("Epoch", fontsize=10)
         axes[0].set_ylabel("Distance", fontsize=10)
         axes[0].grid(True, alpha=0.3)
@@ -425,7 +429,7 @@ class Trainer:
             "[最终评估指标]\n",
             f"训练总耗时 (Total Training Time): {total_time:.2f} 秒 ({total_time/60:.2f} 分钟)\n",
             f"最终训练 Loss (Final Loss): {final_loss:.6f}\n",
-            f"1D 真实流形均距 (Manifold Distance): {avg_dist:.6f}\n",
+            f"双向倒角距离 (Chamfer Distance): {avg_dist:.6f}\n",
             f"投影分布均匀度 (Uniformity Entropy): {uniformity:.4f}\n",
             f"流形覆盖率 (Coverage): {coverage:.2%}\n"
         ]
