@@ -187,7 +187,9 @@ html.light [class*="bg-slate-900/"],
 html.light [class*="bg-slate-950/"],
 html.light [class*="bg-indigo-950/"],
 html.light [class*="bg-emerald-950/"],
-html.light [class*="bg-[#020408]"] {
+html.light [class*="bg-[#020408]"],
+html.light [class*="bg-[#040711]"],
+html.light [class*="bg-[#0b1120]"] {
   background-color: var(--card-inner-bg) !important;
 }
 
