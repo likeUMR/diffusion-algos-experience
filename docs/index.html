@@ -384,9 +384,8 @@
           我的硬核实验物理设置与 HPO 贝叶斯搜索空间 (My Experimental Settings)
         </h3>
         
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Left 6 columns: Experimental Design Cards -->
-          <div class="lg:col-span-6 space-y-4">
+        <div class="space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="bg-black/30 rounded-xl p-4 border border-white/5 space-y-2.5">
               <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">1. 物理流形数据集 (Archimedean Spiral Dataset)</span>
               <p class="text-[11px] text-slate-400 leading-relaxed">
@@ -450,58 +449,55 @@
                 </div>
               </div>
             </div>
+
           </div>
 
-          <!-- Right 6 columns: HPO Space & Comput-aware Alignment -->
-          <div class="lg:col-span-6 space-y-4">
-            <div class="bg-black/30 rounded-xl p-4 border border-white/5 space-y-2.5">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">4. 极限调参 HPO 贝叶斯搜索空间</span>
-              <p class="text-[11px] text-slate-400 leading-relaxed">
-                使用 Optuna 自适应贝叶斯优化采样器（TPESampler），针对以下优化器超参数执行对数均匀（Log-uniform）连续尺度下的极限寻优。每个 Trial 完成后统一采样点云，并以测试集下的<b>双向倒角距离 (Chamfer Distance, CD)</b>作为 HPO 排名目标。
+          <div class="bg-black/30 rounded-xl p-4 border border-indigo-500/15 space-y-4">
+            <div>
+              <span class="text-xs font-bold text-indigo-300 uppercase tracking-wider block">独立优化方法 Block</span>
+              <h4 class="text-base font-bold text-white mt-1">4-5. 极限调参 HPO 自适应贝叶斯优化方法</h4>
+              <p class="text-[11px] text-slate-400 leading-relaxed mt-2">
+                HPO 不是手工网格遍历，也不是一次性随机试参，而是使用 Optuna 的 <b>TPESampler</b> 根据历史 Trial 结果不断更新采样分布。每个 Trial 得到一个超参数向量 \(x\) 和验证目标值 \(y=f(x)\)，目标是在有限训练预算内更快找到低 \(y\) 区域。
               </p>
-              <div class="overflow-x-auto">
-                <table class="w-full text-[10px] text-left border-collapse border border-white/5 text-center font-mono">
-                  <thead>
-                    <tr class="bg-indigo-950/20 text-slate-400 border-b border-white/5">
-                      <th class="p-1.5 text-left font-sans">超参数</th>
-                      <th class="p-1.5 font-sans">搜索区间/类型</th>
-                      <th class="p-1.5 font-sans">对准基准/评估器</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-white/5 text-slate-300">
-                    <tr>
-                      <td class="p-1.5 text-left font-sans">学习率 (lr)</td>
-                      <td class="p-1.5">\( [5\times 10^{-4}, 5\times 10^{-3}] \) (Log)</td>
-                      <td class="p-1.5" rowspan="2">AdamW 优化器</td>
-                    </tr>
-                    <tr>
-                      <td class="p-1.5 text-left font-sans">权重衰减 (WD)</td>
-                      <td class="p-1.5">\( [10^{-6}, 10^{-3}] \) (Log)</td>
-                    </tr>
-                    <tr>
-                      <td class="p-1.5 text-left font-sans">训练 Loss</td>
-                      <td class="p-1.5">算法特定回归目标 \( \mathcal{L}_{train} \)</td>
-                      <td class="p-1.5">反向传播优化</td>
-                    </tr>
-                    <tr>
-                      <td class="p-1.5 text-left font-sans">倒角距离评估</td>
-                      <td class="p-1.5" colspan="2">双向倒角距离 (Chamfer Distance, CD ↓)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
             </div>
 
-            <div class="bg-black/30 rounded-xl p-4 border border-white/5 space-y-2.5">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">5. 算力配平约束与自适应 Epochs (Equal FLOPs)</span>
-              <p class="text-[11px] text-slate-400 leading-relaxed">
-                为了达成学术意义上的绝对公平，我们施加了 <b>等效训练总 FLOPs（约 40.81G FLOPs）配平机制</b>。根据选定超参理论估算单批次 FLOPs，自动对齐比例，自适应折减训练 Epochs。
-              </p>
-              <div class="text-[10px] text-slate-400 bg-slate-950/40 p-2.5 rounded border border-white/5 leading-relaxed font-sans">
-                <span class="text-cyan-400 font-bold">配平规则：</span><br>
-                1. 基础轻量网络（如 128x3 MLP）允许运行满满 <b>1000 Epochs</b>。<br>
-                2. 大型深网络（如 512x2, 192x6）其单批次 FLOPs 暴增，相同总 FLOPs 约束下允许的 Epochs 自动成比例<b>折减至 93 或 235 轮</b>。<br>
-                3. 自洽一致性模型（CM）训练涉及 Online / EMA 双目标网络，算力开销按 1.33 倍计算，Epochs 相应再次折算，确保在同一算力底线上进行最严苛大决战。
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div class="space-y-2.5">
+                <div class="bg-slate-950/40 p-3 rounded-lg border border-white/5">
+                  <span class="text-xs font-bold text-slate-300 block mb-1">4. TPE 的概率建模</span>
+                  <p class="text-[10px] text-slate-400 leading-relaxed">
+                    普通贝叶斯优化常直接建模 \(p(y|x)\)，TPE 反过来建模 \(p(x|y)\)。设当前所有 Trial 的目标值集合为 \(\{y_i\}\)，取分位数阈值 \(y^*\) 把历史样本分成好样本与坏样本：
+                  </p>
+                </div>
+                <div class="text-[10px] text-slate-400 bg-slate-950/40 p-3 rounded border border-white/5 leading-relaxed font-sans space-y-2">
+                  <div class="text-indigo-200 font-mono">
+                    \(p(x|y)=l(x),\quad y&lt;y^*\)
+                    <br>
+                    \(p(x|y)=g(x),\quad y\ge y^*\)
+                  </div>
+                  <p>
+                    其中 \(l(x)\) 由表现最好的 Trial 拟合，代表“优质超参数区域”；\(g(x)\) 由其余 Trial 拟合，代表“普通或较差区域”。连续参数通常用一维 Parzen 窗核密度估计，离散参数用类别概率估计；对数尺度参数会先在 log 空间采样和建模。
+                  </p>
+                </div>
+              </div>
+
+              <div class="space-y-2.5">
+                <div class="bg-slate-950/40 p-3 rounded-lg border border-white/5">
+                  <span class="text-xs font-bold text-slate-300 block mb-1">5. 采样准则与迭代过程</span>
+                  <p class="text-[10px] text-slate-400 leading-relaxed">
+                    TPE 每轮不是直接从全空间均匀采一个点，而是先从 \(l(x)\) 中生成一批候选，再用 \(l(x)/g(x)\) 打分。这个比值越大，表示该候选更像历史好样本、又不像历史坏样本，因此更值得作为下一次 Trial。
+                  </p>
+                </div>
+                <div class="text-[10px] text-slate-400 bg-slate-950/40 p-3 rounded border border-white/5 leading-relaxed font-sans space-y-2">
+                  <div class="text-cyan-200 font-mono">
+                    \(EI(x) \propto \left(\gamma + (1-\gamma)\frac{g(x)}{l(x)}\right)^{-1}\)
+                    <br>
+                    \(\Rightarrow\quad x_{next}=\arg\max_x \frac{l(x)}{g(x)}\)
+                  </div>
+                  <p>
+                    \(\gamma=P(y&lt;y^*)\) 是好样本分位比例。实际执行时，Optuna 会先运行若干启动 Trial 建立初始样本；之后循环执行“按历史结果更新 \(l/g\) → 从 \(l(x)\) 采候选 → 选择 \(l/g\) 最大的候选 → 训练并评估 → 写回 study”。因此搜索会从早期探索逐渐转向高收益区域开发，同时保留少量随机性避免过早陷入局部最优。
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -559,6 +555,7 @@
                     <button onclick="switchHpoImageKind('generation')" data-hpo-filter="plot" data-hpo-value="generation" id="hpo-sub-btn-generation" class="hpo-filter-btn py-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 font-bold text-xs transition">模型分布</button>
                     <button onclick="switchHpoImageKind('loss')" data-hpo-filter="plot" data-hpo-value="loss" id="hpo-sub-btn-loss" class="hpo-filter-btn py-2 rounded-lg border border-white/5 bg-slate-800/30 hover:bg-slate-800/80 text-slate-400 font-semibold text-xs transition">Loss 曲线</button>
                     <button onclick="switchHpoImageKind('metrics')" data-hpo-filter="plot" data-hpo-value="metrics" id="hpo-sub-btn-metrics" class="hpo-filter-btn py-2 rounded-lg border border-white/5 bg-slate-800/30 hover:bg-slate-800/80 text-slate-400 font-semibold text-xs transition">指标曲线</button>
+                    <button onclick="switchHpoImageKind('hpo_history')" data-hpo-filter="plot" data-hpo-value="hpo_history" id="hpo-sub-btn-hpo_history" class="hpo-filter-btn py-2 rounded-lg border border-white/5 bg-slate-800/30 hover:bg-slate-800/80 text-slate-400 font-semibold text-xs transition">寻优历史</button>
                   </div>
                 </div>
               </div>
@@ -919,6 +916,254 @@
       </div>
     </section>
 
+    <!-- 🪐 PART 4: 高维真实验证 -->
+    <section id="block-high-dim" class="space-y-8 pt-12 border-t border-white/10">
+      
+      <!-- 🪐 模块标题头 -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <i data-lucide="image" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+            Part 4: High-Dimensional Real Verification
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            Part 4：高维图像验证与探讨 (CIFAR-10 非正式探讨)
+          </h2>
+          <p class="text-sm text-slate-400">探究局部期望去噪在真实高维图像流形上的可行性（CIFAR-10，20,000 张子集，属于 Toy-Setting，仅作非正式技术分享）</p>
+        </div>
+      </div>
+
+      <!-- 💡 方法演进与痛点机制 (简朴版双侧对照) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- 左侧: HNSW 近邻方案 -->
+        <div class="glass-panel rounded-xl p-6 border border-rose-500/10 hover:border-rose-500/20 transition-all duration-300 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition"></div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="px-3 py-1 text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full">高维适配 1.0 (HNSW KNN)</span>
+            <span class="text-rose-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> 性能退化 (-2.8%)</span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-rose-400 transition">HNSW 点对点硬检索与维度灾难</h3>
+          
+          <div class="mt-4 space-y-3 text-slate-400 text-xs leading-relaxed">
+            <p>
+              将图像展平，并在原始数据中构建 HNSW 索引。训练时，以加噪点 $x_t$ 进行 Query，检索最近的 $k-1$ 个图片进行似然加权。
+            </p>
+            <div class="bg-black/40 p-3 rounded-lg border border-white/5 space-y-1.5 font-mono text-[11px] text-slate-300">
+              <div class="flex justify-between"><span class="text-slate-500">候选集构成:</span> <span class="text-rose-300">真实 $x_0$ + HNSW 最近邻</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">有效样本大小:</span> <span class="text-rose-300">ESS 极低 (发生权重坍塌)</span></div>
+            </div>
+            <p class="border-t border-white/5 pt-3">
+              在像素高维空间中，欧氏距离得到的近邻缺乏语义关联；在前向概率计算下，由于检索得到的近邻似然极低，最终导致权重坍塌。此方案实质上退化回了单样本监督 of DDIM。
+            </p>
+          </div>
+        </div>
+
+        <!-- 右侧: 软分桶重要性采样 -->
+        <div class="glass-panel rounded-xl p-6 border border-emerald-500/20 hover:border-emerald-500/30 transition-all duration-300 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition"></div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="px-3 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">高维适配 2.0 (Bucket-IS)</span>
+            <span class="text-emerald-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 性能改善 (+13.9%)</span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-emerald-400 transition">软分桶重要性采样 (Bucket-IS)</h3>
+          
+          <div class="mt-4 space-y-3 text-slate-400 text-xs leading-relaxed">
+            <p>
+              预先将训练集聚类到 $B=256$ 个代表性的子区域（桶）。训练时，计算 $x_t$ 到所有桶中心的软高斯似然，按似然权重对分桶进行重要性抽样，并使用自适应重要性采样（SNIS）进行权重偏差补正。
+            </p>
+            <div class="bg-black/40 p-3 rounded-lg border border-white/5 space-y-1.5 font-mono text-[11px] text-slate-300">
+              <div class="flex justify-between"><span class="text-slate-500">流形划分方案:</span> <span class="text-emerald-300">训练集分桶聚类 (B=256)</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">有效样本大小:</span> <span class="text-emerald-300">ESS 保持健康</span></div>
+            </div>
+            <p class="border-t border-white/5 pt-3">
+              以桶中心作为流形表达，提供了连续的软概率覆盖，避开了硬点对点检索的数值归零瓶颈，从而让多候选期望去噪在图像高维数据集上成功发挥作用。
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 📊 严格算力对齐实验对比表 -->
+      <div class="bg-black/30 rounded-xl p-5 border border-white/5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="table-properties" class="w-4 h-4 text-cyan-400"></i>
+            CIFAR-10 图像实验结果汇总表（算力与模型容量严格对齐，采样 NFE = 20）
+          </h3>
+          <span class="text-[10px] text-slate-500 font-mono">基于 5k 生成样本之 FID/KID 评测</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse border border-white/5 text-center font-mono">
+            <thead>
+              <tr class="bg-cyan-950/20 text-slate-400 border-b border-white/5">
+                <th class="p-3 text-left font-sans">算法模型</th>
+                <th class="p-3 font-sans">训练大小</th>
+                <th class="p-3 font-sans">候选集规模 $k$</th>
+                <th class="p-3 font-sans">分桶数 $B$</th>
+                <th class="p-3 font-sans">NFE</th>
+                <th class="p-3 bg-black/40 text-cyan-400 font-bold">FID 5k (↓)</th>
+                <th class="p-3 bg-black/40 text-cyan-400 font-bold">KID 5k (↓)</th>
+                <th class="p-3 font-sans text-emerald-400">ESS 均值</th>
+                <th class="p-3 font-sans text-indigo-400">峰值显存</th>
+                <th class="p-3 font-sans">训练时长 (h)</th>
+                <th class="p-3 font-sans">单步耗时 (s)</th>
+                <th class="p-3 font-sans">额外算力开销</th>
+                <th class="p-3 font-sans">核心指标提升</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-slate-300 font-medium">
+              <!-- DDIM Baseline -->
+              <tr>
+                <td class="p-3 text-left font-sans font-semibold text-slate-400">DDIM (Baseline)</td>
+                <td class="p-3 text-slate-400">20,000</td>
+                <td class="p-3 text-slate-500">-</td>
+                <td class="p-3 text-slate-500">-</td>
+                <td class="p-3">20</td>
+                <td class="p-3 text-slate-400">65.24</td>
+                <td class="p-3 text-slate-400">0.0449</td>
+                <td class="p-3 text-slate-500">-</td>
+                <td class="p-3 text-slate-400">3.74 GB</td>
+                <td class="p-3">1.94 h</td>
+                <td class="p-3">0.139 s</td>
+                <td class="p-3 text-slate-500">基准 (0.0%)</td>
+                <td class="p-3 text-slate-500">参照组</td>
+              </tr>
+              <!-- Avg-DDIM HNSW -->
+              <tr class="bg-white/[0.01]">
+                <td class="p-3 text-left font-sans font-semibold text-rose-300">Avg-DDIM-HNSW</td>
+                <td class="p-3">20,000</td>
+                <td class="p-3">30</td>
+                <td class="p-3 text-slate-500">-</td>
+                <td class="p-3">20</td>
+                <td class="p-3 text-rose-300">67.08</td>
+                <td class="p-3 text-rose-300">0.0480</td>
+                <td class="p-3 text-rose-300">1.00 <span class="text-[10px] text-slate-500">(坍塌)</span></td>
+                <td class="p-3 text-rose-300">3.98 GB</td>
+                <td class="p-3">2.79 h</td>
+                <td class="p-3 text-rose-400">0.200 s</td>
+                <td class="p-3 text-rose-400">+43.8%</td>
+                <td class="p-3 text-rose-400 font-sans">退化 2.8% (维度崩溃)</td>
+              </tr>
+              <!-- Avg-DDIM Bucket IS -->
+              <tr class="bg-emerald-950/20 text-emerald-400 font-bold border-y-2 border-emerald-500/20 shadow-[0_0_12px_rgba(52,211,153,0.05)]">
+                <td class="p-3.5 text-left font-sans flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                  Avg-DDIM-Bucket-IS
+                </td>
+                <td class="p-3.5 text-emerald-300">20,000</td>
+                <td class="p-3.5 text-emerald-300">30</td>
+                <td class="p-3.5 text-emerald-300">256</td>
+                <td class="p-3.5">20</td>
+                <td class="p-3.5 text-emerald-200 text-sm font-extrabold">
+                  56.17 ★
+                </td>
+                <td class="p-3.5 text-emerald-200 text-sm font-extrabold">
+                  0.0387 ★
+                </td>
+                <td class="p-3.5 text-emerald-300">7.65</td>
+                <td class="p-3.5 text-emerald-300">3.98 GB</td>
+                <td class="p-3.5 text-emerald-300">2.43 h</td>
+                <td class="p-3.5 text-emerald-300">0.174 s</td>
+                <td class="p-3.5 text-emerald-300">+25.3%</td>
+                <td class="p-3.5 text-emerald-200 font-sans flex flex-col items-center">
+                  <span>提升 13.9%</span>
+                  <span class="text-[9px] font-normal text-emerald-400 font-mono">(FID 降低 9.07 点)</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 🖼️ 生成样本直观对比 (4张汇总图) -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="image" class="w-4 h-4 text-cyan-400"></i>
+            实验生成样本与真实数据集汇总对比（采样 NFE = 20，点击可查看大图）
+          </h3>
+          <span class="text-[10px] text-slate-500 font-mono">图片已复制并加载自本地 assets 目录</span>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <!-- Card 1: 真实样本 -->
+          <div class="glass-panel rounded-xl p-4 border border-white/5 hover:border-slate-500/20 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div class="overflow-hidden rounded-lg bg-black/40 border border-white/5 mb-3">
+                <img src="assets/results_image/cifar10_real_samples.png" 
+                     onerror="this.src='https://placehold.co/300x300/1e293b/cbd5e1?text=Real+CIFAR-10+Samples'" 
+                     class="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                     onclick="openLightbox(this.src, 'CIFAR-10 真实数据集参考样本 (Ground Truth)')"
+                     alt="Real Samples">
+              </div>
+              <h4 class="text-sm font-bold text-white group-hover:text-cyan-400 transition">1. 真实训练样本 (Ground Truth)</h4>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                CIFAR-10 官方标准真实图像样例参考，作为生成质量的直观对比基准。
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 2: 原始 DDIM -->
+          <div class="glass-panel rounded-xl p-4 border border-white/5 hover:border-slate-500/20 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div class="overflow-hidden rounded-lg bg-black/40 border border-white/5 mb-3">
+                <img src="assets/results_image/cifar10_ddim_samples.png" 
+                     onerror="this.src='https://placehold.co/300x300/1e293b/cbd5e1?text=DDIM+NFE=20+Samples'" 
+                     class="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                     onclick="openLightbox(this.src, '原始 DDIM 生成样本 (NFE = 20, FID = 65.24)')"
+                     alt="DDIM Samples">
+              </div>
+              <h4 class="text-sm font-bold text-white group-hover:text-cyan-400 transition">2. 原始 DDIM (Baseline)</h4>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                标准 DDIM 确定性采样（NFE = 20，FID = 65.24），作为我们算法的高维对照基准。
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 3: 小世界 (HNSW) -->
+          <div class="glass-panel rounded-xl p-4 border border-white/5 hover:border-slate-500/20 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div class="overflow-hidden rounded-lg bg-black/40 border border-white/5 mb-3">
+                <img src="assets/results_image/cifar10_hnsw_samples.png" 
+                     onerror="this.src='https://placehold.co/300x300/1e293b/cbd5e1?text=HNSW+NFE=20+Samples'" 
+                     class="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                     onclick="openLightbox(this.src, 'Avg-DDIM-HNSW (小世界) 生成样本 (NFE = 20, FID = 67.08)')"
+                     alt="HNSW Samples">
+              </div>
+              <h4 class="text-sm font-bold text-white group-hover:text-cyan-400 transition">3. 小世界 (Avg-DDIM-HNSW)</h4>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                HNSW 点对点硬检索得到的候选集方案，受高维空间欧氏维度崩溃影响，FID 得分为 67.08。
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 4: Bucket 方法 -->
+          <div class="glass-panel rounded-xl p-4 border border-emerald-500/10 hover:border-emerald-500/30 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div class="overflow-hidden rounded-lg bg-black/40 border border-emerald-500/5 mb-3">
+                <img src="assets/results_image/cifar10_bucket_samples.png" 
+                     onerror="this.src='https://placehold.co/300x300/1e293b/cbd5e1?text=Bucket+NFE=20+Samples'" 
+                     class="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                     onclick="openLightbox(this.src, 'Avg-DDIM-Bucket-IS (分桶方法) 生成样本 (NFE = 20, FID = 56.17)')"
+                     alt="Bucket IS Samples">
+              </div>
+              <h4 class="text-sm font-bold text-emerald-400 group-hover:text-emerald-300 transition">4. 分桶重要性采样 (Bucket-IS)</h4>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                K-Means 分桶空间聚类软概率重要性采样方案，FID 达到 56.17，生成细节更为合理。
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
     </div>
 
   </main>
@@ -979,6 +1224,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="data/milestones.js"></script>
   <script src="data/hpo_results.js"></script>
+  <script src="data/hpo_history.js"></script>
   <script src="data/visual_replay_data.js"></script>
   <script src="data/papers/ddpm.js"></script>
   <script src="data/papers/ddim.js"></script>

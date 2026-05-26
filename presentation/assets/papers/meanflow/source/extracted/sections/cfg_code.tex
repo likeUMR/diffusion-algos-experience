@@ -1,0 +1,70 @@
+\definecolor{codeblue}{rgb}{0.25,0.5,0.5}
+\definecolor{codesign}{RGB}{0, 0, 255}
+\definecolor{codefunc}{rgb}{0.85, 0.18, 0.50}
+
+
+\lstdefinelanguage{PythonFuncColor}{
+  language=Python,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{codeblue},
+  stringstyle=\color{orange},
+  showstringspaces=false,
+  basicstyle=\ttfamily\small,
+  literate=
+    {+}{{\color{codesign}+ }}{1}
+    {-}{{\color{codesign}- }}{1}
+    {*}{{\color{codesign}* }}{1}
+    {/}{{\color{codesign}/ }}{1}
+    {sample_t_r_cfg}{{\color{codefunc}sample\_t\_r\_cfg}}{1}
+    {randn_like}{{\color{codefunc}randn\_like}}{1}
+    {jvp}{{\color{codefunc}jvp}}{1}
+    {stopgrad}{{\color{codefunc}stopgrad}}{1}
+    {metric}{{\color{codefunc}metric}}{1}
+    % {None}{{\color{codeblue}None}}{0}
+}
+
+\lstset{
+  language=PythonFuncColor,
+  backgroundcolor=\color{white},
+  basicstyle=\fontsize{8pt}{8.8pt}\ttfamily\selectfont,
+  columns=fullflexible,
+  breaklines=true,
+  captionpos=b,
+}
+
+\begin{algorithm}[t]
+\centering
+\caption{{improved MeanFlow}: training guidance.\\
+{\scriptsize Note: in PyTorch and JAX, \texttt{jvp} returns the function output and JVP.}}
+
+\begin{minipage}{0.99\linewidth}
+\begin{lstlisting}[language=PythonFuncColor, escapechar=`]
+# fn(z, t, r, w, c): function to predict u
+# x: training batch
+# c: condition batch
+
+t, r, w = sample_t_r_cfg()
+e = randn_like(x)
+
+z = (1 - t) * x + t * e
+
+# cls cond and cls uncond v
+v_c = fn(z, t, t, w, c)
+v_u = fn(z, t, t, w, None)
+
+# Compute CFG target (same as orig MF)
+v_tgt = (e - x) + (1 - 1 / w) * (v_c - v_u)
+
+# Use predicted v_c to compute dudt
+u, dudt = jvp(fn,  (z, r, t, w, c),  
+                        (v_c, 0, 1, 0, 0))
+
+# Compute compound function V
+V = u + (t - r) * stopgrad(dudt)
+error = V - stopgrad(v_tgt)
+
+loss = metric(error)
+\end{lstlisting}
+\end{minipage}
+\label{alg:cfg_code}
+\end{algorithm}

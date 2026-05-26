@@ -496,7 +496,8 @@ function formatHpoSelectionLabel() {
   const plotLabel = {
     generation: '模型分布',
     loss: 'Loss',
-    metrics: '指标'
+    metrics: '指标',
+    hpo_history: '寻优历史'
   }[currentHpoImageKind];
   return `NFE=${nfeLabel} / ${algoLabel} / ${processLabel} / ${plotLabel}`;
 }
@@ -934,6 +935,87 @@ function generateDynamicHpoLeaderboard(nfe, originalTableHTML) {
 }
 
 function generateHpoSelectionSummary() {
+  if (currentHpoImageKind === 'hpo_history') {
+    const selectedNfes = getSelectedHpoNfes();
+    const selectedAlgos = getSelectedHpoAlgos();
+    const allTrials = [];
+
+    selectedNfes.forEach(nfe => {
+      const nfeHistory = hpoHistoryData[nfe];
+      if (!nfeHistory) return;
+      selectedAlgos.forEach(algo => {
+        const trials = nfeHistory[algo];
+        if (trials) {
+          trials.forEach(t => {
+            allTrials.push({ nfe, algo, ...t });
+          });
+        }
+      });
+    });
+
+    if (allTrials.length === 0) {
+      return `
+        <div class="text-xs text-slate-400 leading-relaxed">
+          当前筛选组合没有可展示的 HPO 寻优历程历史数据。
+        </div>
+      `;
+    }
+
+    const sortedTrials = [...allTrials].filter(t => t.status === 'success').sort((a, b) => a.cd - b.cd);
+    const bestTrial = sortedTrials[0] || null;
+    const visibleTrials = sortedTrials.slice(0, 8);
+    const tableRows = visibleTrials.map((item, idx) => {
+      const isChampion = idx === 0;
+      const rowClass = isChampion ? 'bg-emerald-950/20 text-emerald-400 font-bold' : 'bg-slate-900/30 text-slate-300';
+      const cdStr = item.cd.toFixed(6);
+      return `
+        <tr class="${rowClass}">
+          <td class="p-1">T${item.trial}</td>
+          <td class="p-1 font-sans">${ALGO_DISPLAY_NAMES[item.algo].replace(' (Champion ★)', '').replace(' (2026)', '')}</td>
+          <td class="p-1">${item.hidden_dim}x${item.num_blocks}</td>
+          <td class="p-1">${item.lr ? item.lr.toExponential(1) : 'N/A'}</td>
+          <td class="p-1 font-bold">${cdStr}${isChampion ? ' ★' : ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div class="space-y-3">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-slate-400">当前历史:</span>
+          <span class="font-bold text-cyan-300 text-right">TPE 寻优排名 (Top 8)</span>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-relaxed font-sans">
+          在当前筛选范围内共有 <b class="text-white">${allTrials.length}</b> 个 HPO Trial 记录。
+          贝叶斯优化器搜索出的最优 Trial 组合为 
+          <b class="text-emerald-400">${bestTrial ? `${bestTrial.algo.toUpperCase()} Trial ${bestTrial.trial}` : 'N/A'}</b>，
+          其超参数为 <b>lr: ${bestTrial?.lr ? bestTrial.lr.toExponential(2) : 'N/A'} | WD: ${bestTrial?.weight_decay ? bestTrial.weight_decay.toExponential(2) : 'N/A'}</b>，
+          最终倒角距离 CD = <b class="text-emerald-400">${bestTrial ? bestTrial.cd.toFixed(6) : 'N/A'}</b>。
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[9px] text-left border-collapse border border-white/5">
+            <thead>
+              <tr class="bg-indigo-950/40 text-slate-400 border-b border-white/5 font-mono text-[8.5px]">
+                <th class="p-1">Trial</th>
+                <th class="p-1">算法</th>
+                <th class="p-1">架构</th>
+                <th class="p-1">lr</th>
+                <th class="p-1 font-bold text-cyan-400">CD ↓</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 font-mono">
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-[9.5px] text-slate-500 leading-relaxed font-sans leading-relaxed">
+          <b>贝叶斯 TPE 算法核心原理：</b><br>
+          将样本分为优秀组 \\( \\ell(x) \\) 与普通组 \\( g(x) \\)，极大化期望提升值 \\( EI(x) = \\frac{\\ell(x)}{g(x)} \\)。寻优曲线的“锯齿波状”试错波形，体现了算法在探索（Exploration）与开发（Exploitation）之间的权衡博弈。
+        </div>
+      </div>
+    `;
+  }
+
   const combos = getHpoRunCombos();
   const rows = combos.map(combo => {
     const cd = getFinalMetricValue(combo.runData, 'chamfer');
@@ -1016,11 +1098,12 @@ function renderHpoCharts() {
   
   const isLoss = currentHpoImageKind === 'loss';
   const isLast = currentHpoProcess === 'last';
+  const isHpoHistory = currentHpoImageKind === 'hpo_history';
   const combos = getHpoRunCombos();
   
   // 控制具体指标选择菜单的显示与隐藏
   if (selectorContainer) {
-    if (isLoss) {
+    if (isLoss || isHpoHistory) {
       selectorContainer.classList.add('hidden');
     } else {
       selectorContainer.classList.remove('hidden');
@@ -1031,7 +1114,55 @@ function renderHpoCharts() {
   let datasets = [];
   let labels = [];
 
-  if (isLast) {
+  if (isHpoHistory) {
+    chartType = 'line';
+    let maxTrialNum = 0;
+    const selectedNfes = getSelectedHpoNfes();
+    const selectedAlgos = getSelectedHpoAlgos();
+    
+    selectedNfes.forEach(nfe => {
+      const nfeHistory = hpoHistoryData[nfe];
+      if (!nfeHistory) return;
+      selectedAlgos.forEach(algo => {
+        const trials = nfeHistory[algo];
+        if (trials && trials.length > 0) {
+          maxTrialNum = Math.max(maxTrialNum, trials.length);
+        }
+      });
+    });
+    
+    labels = Array.from({ length: maxTrialNum }, (_, i) => `Trial ${i}`);
+    
+    selectedNfes.forEach(nfe => {
+      const nfeHistory = hpoHistoryData[nfe];
+      if (!nfeHistory) return;
+      selectedAlgos.forEach(algo => {
+        const trials = nfeHistory[algo];
+        if (!trials || trials.length === 0) return;
+        
+        const chartPoints = trials.map(t => {
+          return {
+            x: t.trial,
+            y: t.status === 'success' ? t.cd : null,
+            trialObj: t
+          };
+        });
+        
+        datasets.push({
+          label: `NFE ${nfe} · ${algo.toUpperCase()}`,
+          data: chartPoints.map(p => p.y),
+          borderColor: ALGO_COLORS[algo],
+          backgroundColor: ALGO_COLORS[algo] + '15',
+          borderWidth: algo === 'avg_ddim' ? 3 : 2,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          tension: 0.15,
+          spanGaps: true,
+          trialMetaData: chartPoints.map(p => p.trialObj)
+        });
+      });
+    });
+  } else if (isLast) {
     chartType = 'bar';
     labels = combos.map(combo => `${combo.nfe}-${ALGO_DISPLAY_NAMES[combo.algo].replace(' (Champion ★)', '').replace(' (2026)', '')}`);
     const metricKey = isLoss ? 'loss' : hpoCurrentSpecificMetric;
@@ -1080,7 +1211,16 @@ function renderHpoCharts() {
   let yMax = null;
   let yTicksCallback = function(value) { return value.toFixed(3); };
 
-  if (!isLoss) {
+  if (isHpoHistory) {
+    yTitle = 'Chamfer Distance (CD) ↓ [越小越好]';
+    scaleType = 'logarithmic';
+    yTicksCallback = function(value) {
+      if (value === 0.1 || value === 0.01 || value === 0.001 || value === 1 || value === 10) {
+        return value.toFixed(value < 1 ? (value < 0.1 ? 3 : 2) : 0);
+      }
+      return value.toExponential(1);
+    };
+  } else if (!isLoss) {
     if (hpoCurrentSpecificMetric === 'chamfer') {
       yTitle = 'Chamfer Distance (CD)';
       scaleType = 'logarithmic';
@@ -1135,6 +1275,33 @@ function renderHpoCharts() {
           padding: 8,
           callbacks: {
             label: function(context) {
+              if (isHpoHistory) {
+                const dataset = context.dataset;
+                const meta = dataset.trialMetaData ? dataset.trialMetaData[context.dataIndex] : null;
+                if (!meta) return dataset.label + ': N/A';
+                
+                const lines = [];
+                const algoName = dataset.label.split(' · ')[1] || '';
+                const displayAlgo = ALGO_DISPLAY_NAMES[algoName.toLowerCase()] || algoName;
+                lines.push(`${displayAlgo.replace(' (Champion ★)', '').replace(' (2026)', '')} - Trial ${meta.trial}`);
+                
+                if (meta.status === 'failed') {
+                  lines.push(`  CD: ❌ 训练崩溃 (Pruned)`);
+                  if (meta.failure_reason) {
+                    let reason = meta.failure_reason;
+                    if (reason.length > 45) reason = reason.substring(0, 45) + '...';
+                    lines.push(`  原因: ${reason}`);
+                  }
+                } else {
+                  lines.push(`  CD: ${meta.cd.toFixed(6)} ★`);
+                }
+                
+                const sizeStr = meta.hidden_dim ? `${meta.hidden_dim}x${meta.num_blocks}` : 'N/A';
+                lines.push(`  架构: ${sizeStr} MLP (自适应配平 Epochs: ${meta.epochs || 'N/A'})`);
+                lines.push(`  优化: lr = ${meta.lr ? meta.lr.toExponential(3) : 'N/A'} | WD = ${meta.weight_decay ? meta.weight_decay.toExponential(3) : 'N/A'}`);
+                return lines;
+              }
+
               let label = context.dataset.label || '';
               if (label) label += ': ';
               if (context.parsed.y !== null) {
@@ -1155,7 +1322,7 @@ function renderHpoCharts() {
         x: {
           title: {
             display: true,
-            text: isLast ? 'Selected Run' : 'Epoch',
+            text: isHpoHistory ? 'Optuna Trials (Sequential)' : (isLast ? 'Selected Run' : 'Epoch'),
             color: isLight ? '#475569' : '#64748b',
             font: { size: 9, weight: 'bold' }
           },
@@ -1165,8 +1332,8 @@ function renderHpoCharts() {
           ticks: {
             color: isLight ? '#475569' : '#64748b',
             font: { size: 9 },
-            maxRotation: isLast ? 65 : 0,
-            minRotation: isLast ? 35 : 0,
+            maxRotation: isHpoHistory ? 0 : (isLast ? 65 : 0),
+            minRotation: isHpoHistory ? 0 : (isLast ? 35 : 0),
             autoSkip: true,
             maxTicksLimit: isLast ? 12 : 10
           }
@@ -1249,7 +1416,8 @@ function updateHpoDisplay() {
 
     const kindNames = {
       loss: currentHpoProcess === 'last' ? '最终训练 Loss 对比' : '训练 Loss 收敛曲线',
-      metrics: currentHpoProcess === 'last' ? '最终物理指标对比' : '物理评估指标收敛曲线'
+      metrics: currentHpoProcess === 'last' ? '最终物理指标对比' : '物理评估指标收敛曲线',
+      hpo_history: '超参极限寻优 (HPO) 贝叶斯历程历史'
     };
     const metricNames = {
       chamfer: 'CD 倒角距离',
@@ -1258,7 +1426,9 @@ function updateHpoDisplay() {
     };
     const suffix = currentHpoImageKind === 'metrics' ? ` - (${metricNames[hpoCurrentSpecificMetric]})` : '';
     if (titleEl) titleEl.innerText = `${formatHpoSelectionLabel()} - ${kindNames[currentHpoImageKind]}${suffix}`;
-    if (pathEl) pathEl.innerText = 'visual_replay_data.js/loss_history|metrics_history (ChartJS Render)';
+    if (pathEl) pathEl.innerText = currentHpoImageKind === 'hpo_history'
+      ? 'hpo_history.js/hpoHistoryData (Optuna SQLite DB Live Parsing)'
+      : 'visual_replay_data.js/loss_history|metrics_history (ChartJS Render)';
   }
 
   // 动态载入并生成当前筛选组合下的高保真榜单

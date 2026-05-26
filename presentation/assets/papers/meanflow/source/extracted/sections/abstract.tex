@@ -1,0 +1,11 @@
+\begin{abstract}
+MeanFlow (MF) has recently been established as a framework for one-step generative modeling. However, its ``fastforward'' nature introduces key challenges in both the training objective and the guidance mechanism.
+First, the original MF's training target depends not only on the underlying ground-truth fields but also on the network itself. To address this issue, we recast the objective as a loss on the instantaneous velocity $v$, re-parameterized by a network that predicts the average velocity $u$.
+Our reformulation yields a more standard regression problem and improves the training stability.
+Second, the original MF fixes the classifier-free guidance scale during training, which sacrifices flexibility.
+We tackle this issue by formulating guidance as explicit conditioning variables, thereby retaining flexibility at test time.
+The diverse conditions are processed through in-context conditioning, which reduces model size and benefits performance.
+Overall, our \textbf{improved MeanFlow} (\textbf{iMF}) method, trained entirely from scratch, achieves \textbf{1.72} FID with a single function evaluation (1-NFE) on ImageNet 256$\times$256. 
+iMF substantially outperforms prior methods of this kind and closes the gap with multi-step methods while using no distillation. 
+We hope our work will further advance fastforward generative modeling as a stand-alone paradigm.
+\end{abstract}

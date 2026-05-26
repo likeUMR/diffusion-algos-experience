@@ -1,0 +1,69 @@
+\definecolor{codeblue}{rgb}{0.25,0.5,0.5}
+\definecolor{codesign}{RGB}{0, 0, 255}
+\definecolor{codefunc}{rgb}{0.85, 0.18, 0.50}
+
+
+\lstdefinelanguage{PythonFuncColor}{
+  language=Python,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{codeblue},
+  stringstyle=\color{orange},
+  showstringspaces=false,
+  basicstyle=\ttfamily\small,
+  literate=
+    {+}{{\color{codesign}+ }}{1}
+    {-}{{\color{codesign}- }}{1}
+    {*}{{\color{codesign}* }}{1}
+    {/}{{\color{codesign}/ }}{1}
+    {sample_t_r}{{\color{codefunc}sample\_t\_r}}{1}
+    {randn_like}{{\color{codefunc}randn\_like}}{1}
+    {jvp}{{\color{codefunc}jvp}}{1}
+    {stopgrad}{{\color{codefunc}stopgrad}}{1}
+    {metric}{{\color{codefunc}metric}}{1}
+}
+
+\lstset{
+  language=PythonFuncColor,
+  backgroundcolor=\color{white},
+  basicstyle=\fontsize{9pt}{9.9pt}\ttfamily\selectfont,
+  columns=fullflexible,
+  breaklines=true,
+  captionpos=b,
+}
+
+\newcommand{\safeColorbox}[2]{%
+  \begingroup
+  \setlength{\fboxsep}{0pt}%
+  \colorbox{#1}{\strut #2}%
+  \endgroup
+}
+
+\begin{algorithm}[t]
+\centering
+\caption{{improved MeanFlow}: training.\\
+{\scriptsize Note: in PyTorch and JAX, \texttt{jvp} returns the function output and JVP.}}
+\label{alg:code}
+\begin{minipage}{0.98\linewidth}
+\begin{lstlisting}[language=PythonFuncColor, escapechar=`]
+# fn(z, r, t): function to predict u
+# x: training batch
+
+t, r = sample_t_r()
+e = randn_like(x)
+
+z  = (1 - t) * x + t * e
+
+# instantaneous velocity v at time t
+v = fn(z, t, t)
+
+# predict u and dudt
+u, dudt = jvp(fn, (z, r, t), (v, 0, 1))
+
+# compound function V
+V = u + (t - r) * stopgrad(dudt)
+error = V - (e - x)
+
+loss = metric(error)
+\end{lstlisting}
+\end{minipage}
+\end{algorithm}

@@ -1,0 +1,69 @@
+\begin{table}[t]
+\centering
+\begin{minipage}{\linewidth}
+% ################################################
+\begin{subtable}{\linewidth}
+\centering
+\tablestyle{4pt}{1.1}
+\begin{tabular}{y{120}|x{45}|x{45}}
+ \textbf{FID, 1-NFE} & w/o CFG & w/ CFG  \\
+\hline
+original MF~\cite{mf}     & 32.69 & 6.17 \\
+our $V_\theta$, with $v_\theta =u_\theta(z_t,t,t)$       & \textbf{29.42} & 5.97 \\
+our $V_\theta$, with $v_\theta$ from aux. head         & 30.76 & \textbf{5.68} \\
+\end{tabular}
+\caption{\textbf{MeanFlow as $v$-loss}. We compare with original MF with our iMF objective in \cref{eq:imf-vpred} in \cref{sec:v-pred}.
+We compare two variants of computing $v_\theta$ for \cref{eq:imf-vpred}, namely, using $u_\theta$'s boundary condition or an auxiliary head.
+In each row, ``w/o CFG'' and ``w/ CFG'' are two models trained separately, as is in original MF (which does not support flexible inference-time CFG). 
+}
+\label{subtab:v-pred}
+\end{subtable}
+\vspace{-0.25em}
+\\
+\begin{subtable}{\linewidth}
+\centering
+\tablestyle{4pt}{1.1}
+\begin{tabular}{y{120}|x{45}|x{45}}
+ \textbf{FID, 1-NFE} & w/o CFG & w/ CFG  \\
+\hline
+best in \cref{tab:fid_ablation}\textbf{(a)}        &  30.76 & 5.68 \\
+% \hline
+CFG-condition: $\omega$-condition    &  25.15 & 5.52 \\
+CFG-condition: $\Omega$-condition &  \textbf{20.95} & \textbf{4.57} \\
+\end{tabular}
+\caption{\textbf{Flexible guidance}. Adding guidance as conditioning enables flexible guidance at inference (\cref{sec:method-cfg}).
+$\omega$-condition is the basic conditioning on the guidance scale $\omega$.
+$\Omega$-condition allows to further condition on CFG interval's start and end points.
+Here, only in the first row, ``w/o CFG'' and ``w/ CFG'' are two models trained separately, same as \cref{tab:fid_ablation}\textbf{(a)}; when using our flexible CFG (last two rows), the ``w/o CFG'' cases are simply $\omega=1$ at inference-time, using a single trained model.
+}
+\label{subtab:flexible-cfg}
+\end{subtable}
+\vspace{-0.25em}
+\\
+\begin{subtable}{\linewidth}
+\centering
+\tablestyle{4pt}{1.1}
+\begin{tabular}{y{120}|x{45}|x{45}}
+\textbf{FID, 1-NFE} & \# params & w/ CFG \\
+\hline
+best in \cref{tab:fid_ablation}\textbf{(b)}               & 133M & 4.57             \\
+{adaLN-zero $\rightarrow$ in-context cond.} & \textbf{89M} & \textbf{4.09}              \\
+\hline
+ \deemph{$+$ advanced Transformer blocks} & \deemph{89M} & \deemph{3.82}              \\
+\deemph{$+$ longer training (640ep)}  & 
+\deemph{89M} & \deemph{3.39} \\
+\end{tabular}
+\caption{\textbf{In-context conditioning} and other improvements.
+Replacing adaLN-zero \cite{dit} with our multi-token in-context conditioning (\cref{sec:method-arch}) improves the results and substantially reduces the model size. Advanced Transformer blocks and longer training yield improvements as expected.}
+\label{subtab:arch}
+\end{subtable}
+% ################################################
+% ################################################
+% ################################################
+\end{minipage}
+\vspace{-0.5em}
+\caption{\textbf{Ablation study on 1-NFE generation.} FID-50K is evaluated on ImageNet 256$\times$256. All are with the MF-B/2 backbone, trained for 240 epochs from scratch by default.
+}
+\label{tab:fid_ablation}
+\end{table}
+%##################################################################################################

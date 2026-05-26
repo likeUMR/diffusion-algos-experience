@@ -1,0 +1,242 @@
+\begin{thebibliography}{36}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Austin et~al.(2021)Austin, Johnson, Ho, Tarlow, and van~den
+  Berg]{austin2021structured}
+Jacob Austin, Daniel~D. Johnson, Jonathan Ho, Daniel Tarlow, and Rianne van~den
+  Berg.
+\newblock Structured denoising diffusion models in discrete state-spaces.
+\newblock \emph{CoRR}, abs/2107.03006, 2021.
+
+\bibitem[Brock et~al.(2019)Brock, Donahue, and Simonyan]{brock2018large}
+Andrew Brock, Jeff Donahue, and Karen Simonyan.
+\newblock Large scale {GAN} training for high fidelity natural image synthesis.
+\newblock In \emph{International Conference on Learning Representations}, 2019.
+
+\bibitem[Cai et~al.(2020)Cai, Yang, Averbuch-Elor, Hao, Belongie, Snavely, and
+  Hariharan]{cai2020learning}
+Ruojin Cai, Guandao Yang, Hadar Averbuch-Elor, Zekun Hao, Serge Belongie, Noah
+  Snavely, and Bharath Hariharan.
+\newblock Learning gradient fields for shape generation.
+\newblock \emph{arXiv preprint arXiv:2008.06520}, 2020.
+
+\bibitem[Chen et~al.(2021)Chen, Zhang, Zen, Weiss, Norouzi, and
+  Chan]{chen2020wavegrad}
+Nanxin Chen, Yu~Zhang, Heiga Zen, Ron~J Weiss, Mohammad Norouzi, and William
+  Chan.
+\newblock {WaveGrad}: Estimating gradients for waveform generation.
+\newblock \emph{{International Conference on Learning Representations}}, 2021.
+
+\bibitem[Chen et~al.(2018)Chen, Rubanova, Bettencourt, and
+  Duvenaud]{chen2018neural}
+Tian~Qi Chen, Yulia Rubanova, Jesse Bettencourt, and David~K Duvenaud.
+\newblock Neural ordinary differential equations.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  6571--6583, 2018.
+
+\bibitem[Dhariwal \& Nichol(2021)Dhariwal and Nichol]{dhariwal2021diffusion}
+Prafulla Dhariwal and Alex Nichol.
+\newblock Diffusion models beat {GAN}s on image synthesis.
+\newblock \emph{arXiv preprint arXiv:2105.05233}, 2021.
+
+\bibitem[Grathwohl et~al.(2018)Grathwohl, Chen, Bettencourt, Sutskever, and
+  Duvenaud]{grathwohl2018ffjord}
+Will Grathwohl, Ricky~TQ Chen, Jesse Bettencourt, Ilya Sutskever, and David
+  Duvenaud.
+\newblock Ffjord: Free-form continuous dynamics for scalable reversible
+  generative models.
+\newblock \emph{arXiv preprint arXiv:1810.01367}, 2018.
+
+\bibitem[Heusel et~al.(2017)Heusel, Ramsauer, Unterthiner, Nessler, and
+  Hochreiter]{heusel2017gans}
+Martin Heusel, Hubert Ramsauer, Thomas Unterthiner, Bernhard Nessler, and Sepp
+  Hochreiter.
+\newblock {GANs} trained by a two time-scale update rule converge to a local
+  {Nash} equilibrium.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  6626--6637, 2017.
+
+\bibitem[Ho et~al.(2020)Ho, Jain, and Abbeel]{ho2020denoising}
+Jonathan Ho, Ajay Jain, and Pieter Abbeel.
+\newblock Denoising diffusion probabilistic models.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  6840--6851, 2020.
+
+\bibitem[Ho et~al.(2021)Ho, Saharia, Chan, Fleet, Norouzi, and
+  Salimans]{ho2021cascaded}
+Jonathan Ho, Chitwan Saharia, William Chan, David~J Fleet, Mohammad Norouzi,
+  and Tim Salimans.
+\newblock Cascaded diffusion models for high fidelity image generation.
+\newblock \emph{arXiv preprint arXiv:2106.15282}, 2021.
+
+\bibitem[Hoogeboom et~al.(2021)Hoogeboom, Nielsen, Jaini, Forr{\'e}, and
+  Welling]{hoogeboom2021argmax}
+Emiel Hoogeboom, Didrik Nielsen, Priyank Jaini, Patrick Forr{\'e}, and Max
+  Welling.
+\newblock Argmax flows and multinomial diffusion: Towards non-autoregressive
+  language models.
+\newblock \emph{arXiv preprint arXiv:2102.05379}, 2021.
+
+\bibitem[Jolicoeur-Martineau et~al.(2021)Jolicoeur-Martineau, Li,
+  Pich{\'e}-Taillefer, Kachman, and Mitliagkas]{jolicoeur2021gotta}
+Alexia Jolicoeur-Martineau, Ke~Li, R{\'e}mi Pich{\'e}-Taillefer, Tal Kachman,
+  and Ioannis Mitliagkas.
+\newblock Gotta go fast when generating data with score-based models.
+\newblock \emph{arXiv preprint arXiv:2105.14080}, 2021.
+
+\bibitem[Kingma et~al.(2021)Kingma, Salimans, Poole, and
+  Ho]{kingma2021variational}
+Diederik~P Kingma, Tim Salimans, Ben Poole, and Jonathan Ho.
+\newblock Variational diffusion models.
+\newblock \emph{arXiv preprint arXiv:2107.00630}, 2021.
+
+\bibitem[Kong \& Ping(2021)Kong and Ping]{kong2021fast}
+Zhifeng Kong and Wei Ping.
+\newblock On fast sampling of diffusion probabilistic models.
+\newblock \emph{arXiv preprint arXiv:2106.00132}, 2021.
+
+\bibitem[Lam et~al.(2021)Lam, Wang, Huang, Su, and Yu]{lam2021bilateral}
+Max~WY Lam, Jun Wang, Rongjie Huang, Dan Su, and Dong Yu.
+\newblock Bilateral denoising diffusion models.
+\newblock \emph{arXiv preprint arXiv:2108.11514}, 2021.
+
+\bibitem[Li et~al.(2021)Li, Yang, Chang, Feng, Xu, Li, and Chen]{li2021srdiff}
+Haoying Li, Yifan Yang, Meng Chang, Huajun Feng, Zhihai Xu, Qi~Li, and Yueting
+  Chen.
+\newblock Srdiff: Single image super-resolution with diffusion probabilistic
+  models.
+\newblock \emph{arXiv preprint arXiv:2104.14951}, 2021.
+
+\bibitem[Loshchilov \& Hutter(2017)Loshchilov and
+  Hutter]{loshchilov2017decoupled}
+Ilya Loshchilov and Frank Hutter.
+\newblock Decoupled weight decay regularization.
+\newblock \emph{arXiv preprint arXiv:1711.05101}, 2017.
+
+\bibitem[Luhman \& Luhman(2021)Luhman and Luhman]{luhman2021knowledge}
+Eric Luhman and Troy Luhman.
+\newblock Knowledge distillation in iterative generative models for improved
+  sampling speed.
+\newblock \emph{arXiv preprint arXiv:2101.02388}, 2021.
+
+\bibitem[Nachmani et~al.(2021)Nachmani, San~Roman, and Wolf]{nachmani2021non}
+Eliya Nachmani, Robin San~Roman, and Lior Wolf.
+\newblock Non gaussian denoising diffusion models.
+\newblock \emph{arXiv preprint arXiv:2106.07582}, 2021.
+
+\bibitem[Nichol \& Dhariwal(2021)Nichol and Dhariwal]{nichol2021improvedddpm}
+Alexander~Quinn Nichol and Prafulla Dhariwal.
+\newblock Improved denoising diffusion probabilistic models.
+\newblock In Marina Meila and Tong Zhang (eds.), \emph{Proceedings of the 38th
+  International Conference on Machine Learning, {ICML}}, 2021.
+
+\bibitem[Niu et~al.(2020)Niu, Song, Song, Zhao, Grover, and
+  Ermon]{niu2020permutation}
+Chenhao Niu, Yang Song, Jiaming Song, Shengjia Zhao, Aditya Grover, and Stefano
+  Ermon.
+\newblock Permutation invariant graph generation via score-based generative
+  modeling.
+\newblock In \emph{International Conference on Artificial Intelligence and
+  Statistics}, pp.\  4474--4484. PMLR, 2020.
+
+\bibitem[Ramachandran et~al.(2017)Ramachandran, Paine, Khorrami, Babaeizadeh,
+  Chang, Zhang, Hasegawa-Johnson, Campbell, and Huang]{ramachandran2017fast}
+Prajit Ramachandran, Tom~Le Paine, Pooya Khorrami, Mohammad Babaeizadeh, Shiyu
+  Chang, Yang Zhang, Mark~A Hasegawa-Johnson, Roy~H Campbell, and Thomas~S
+  Huang.
+\newblock Fast generation for convolutional autoregressive models.
+\newblock \emph{arXiv preprint arXiv:1704.06001}, 2017.
+
+\bibitem[Saharia et~al.(2021)Saharia, Ho, Chan, Salimans, Fleet, and
+  Norouzi]{saharia2021image}
+Chitwan Saharia, Jonathan Ho, William Chan, Tim Salimans, David~J Fleet, and
+  Mohammad Norouzi.
+\newblock Image super-resolution via iterative refinement.
+\newblock \emph{arXiv preprint arXiv:2104.07636}, 2021.
+
+\bibitem[San-Roman et~al.(2021)San-Roman, Nachmani, and Wolf]{san2021noise}
+Robin San-Roman, Eliya Nachmani, and Lior Wolf.
+\newblock Noise estimation for generative diffusion models.
+\newblock \emph{arXiv preprint arXiv:2104.02600}, 2021.
+
+\bibitem[Sohl-Dickstein et~al.(2015)Sohl-Dickstein, Weiss, Maheswaranathan, and
+  Ganguli]{sohl2015deep}
+Jascha Sohl-Dickstein, Eric Weiss, Niru Maheswaranathan, and Surya Ganguli.
+\newblock Deep unsupervised learning using nonequilibrium thermodynamics.
+\newblock In \emph{International Conference on Machine Learning}, pp.\
+  2256--2265, 2015.
+
+\bibitem[Song et~al.(2021{\natexlab{a}})Song, Meng, and
+  Ermon]{song2020denoising}
+Jiaming Song, Chenlin Meng, and Stefano Ermon.
+\newblock Denoising diffusion implicit models.
+\newblock \emph{{International Conference on Learning Representations}},
+  2021{\natexlab{a}}.
+
+\bibitem[Song \& Ermon(2019)Song and Ermon]{song2019generative}
+Yang Song and Stefano Ermon.
+\newblock Generative modeling by estimating gradients of the data distribution.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  11895--11907, 2019.
+
+\bibitem[Song \& Ermon(2020)Song and Ermon]{song2020improved}
+Yang Song and Stefano Ermon.
+\newblock Improved techniques for training score-based generative.
+\newblock \emph{{Advances in Neural Information Processing Systems}}, 2020.
+
+\bibitem[Song et~al.(2021{\natexlab{b}})Song, Durkan, Murray, and
+  Ermon]{song2021maximum}
+Yang Song, Conor Durkan, Iain Murray, and Stefano Ermon.
+\newblock Maximum likelihood training of score-based diffusion models.
+\newblock \emph{arXiv e-prints}, pp.\  arXiv--2101, 2021{\natexlab{b}}.
+
+\bibitem[Song et~al.(2021{\natexlab{c}})Song, Sohl-Dickstein, Kingma, Kumar,
+  Ermon, and Poole]{song2020score}
+Yang Song, Jascha Sohl-Dickstein, Diederik~P Kingma, Abhishek Kumar, Stefano
+  Ermon, and Ben Poole.
+\newblock Score-based generative modeling through stochastic differential
+  equations.
+\newblock \emph{{International Conference on Learning Representations}},
+  2021{\natexlab{c}}.
+
+\bibitem[Song et~al.(2020)Song, Ye, Xu, and Liu]{song2020discriminator}
+Yuxuan Song, Qiwei Ye, Minkai Xu, and Tie-Yan Liu.
+\newblock Discriminator contrastive divergence: Semi-amortized generative
+  modeling by exploring energy of the discriminator.
+\newblock \emph{arXiv preprint arXiv:2004.01704}, 2020.
+
+\bibitem[Tzen \& Raginsky(2019{\natexlab{a}})Tzen and Raginsky]{tzen2019neural}
+Belinda Tzen and Maxim Raginsky.
+\newblock Neural stochastic differential equations: Deep latent gaussian models
+  in the diffusion limit.
+\newblock \emph{arXiv preprint arXiv:1905.09883}, 2019{\natexlab{a}}.
+
+\bibitem[Tzen \& Raginsky(2019{\natexlab{b}})Tzen and
+  Raginsky]{tzen2019theoretical}
+Belinda Tzen and Maxim Raginsky.
+\newblock Theoretical guarantees for sampling and inference in generative
+  models with latent diffusions.
+\newblock In \emph{Conference on Learning Theory}, pp.\  3084--3114. PMLR,
+  2019{\natexlab{b}}.
+
+\bibitem[Vahdat et~al.(2021)Vahdat, Kreis, and Kautz]{vahdat2021score}
+Arash Vahdat, Karsten Kreis, and Jan Kautz.
+\newblock Score-based generative modeling in latent space.
+\newblock \emph{arXiv preprint arXiv:2106.05931}, 2021.
+
+\bibitem[Vincent(2011)]{vincent2011connection}
+Pascal Vincent.
+\newblock A connection between score matching and denoising autoencoders.
+\newblock \emph{Neural Computation}, 23\penalty0 (7):\penalty0 1661--1674,
+  2011.
+
+\bibitem[Watson et~al.(2021)Watson, Ho, Norouzi, and Chan]{watson2021learning}
+Daniel Watson, Jonathan Ho, Mohammad Norouzi, and William Chan.
+\newblock Learning to efficiently sample from diffusion probabilistic models.
+\newblock \emph{arXiv preprint arXiv:2106.03802}, 2021.
+
+\end{thebibliography}

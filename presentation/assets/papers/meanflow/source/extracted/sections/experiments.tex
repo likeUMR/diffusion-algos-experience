@@ -1,0 +1,111 @@
+\section{Experiments}
+
+Our experiment settings follow those of the original MeanFlow \cite{mf}, using the same public code.
+The experiments are on ImageNet \citep{imagenet} class-conditional generation at 256${\times}$256 resolution. 
+Following \cite{shortcut,imm,mf}, the model operates on the latent space of a pretrained VAE tokenizer~\citep{ldm}, which produces 32${\times}$32${\times}$4 latents from 256${\times}$256${\times}$3 images.
+
+We evaluate the challenging protocol of \textbf{1-NFE} generation, where all our models are trained \textbf{\emph{from scratch}}.
+We report Fr\'echet Inception Distance (FID)~\citep{fid} on 50K generated images (with additional metrics in \cref{tab:extra-metrics}).
+Detailed configurations are in appendix.
+
+\paragraph{Baseline.} 
+In our ablations, we use the MeanFlow-B/2 model \cite{mf}.
+The ablation models are trained for 240 epochs. Our setting is exactly the same as that of MeanFlow-B/2 in \cite{mf}, which has a 1-NFE FID of 6.17 (with CFG). This model is our starting point.
+
+\begin{figure}[t]
+\vspace{-1em}
+\centering
+\includegraphics[width=.9\linewidth]{figs/ablation.pdf}
+\vspace{-0.7em}
+\caption{
+\textbf{FID curves during training.} 
+The original MeanFlow-B/2 baseline has a 1-NFE FID of 6.17. Using the improved training objective (\cref{sec:v-pred}), FID improves to 5.68. Incorporating flexible CFG conditioning (\cref{sec:method-cfg}) reduces FID to 4.57. Replacing adaLN-zero with in-context conditioning (\cref{sec:method-arch}) further improves FID to 4.09. See also \cref{tab:fid_ablation}.
+}
+\vspace{-1em}
+\label{fig:learning-ablation}
+\end{figure}
+
+\subsection{Ablation Study}
+\label{sec:ablation}
+
+In \cref{tab:fid_ablation}\textbf{(a)} and \textbf{(b)}, we ablate the iMF designs discussed in \cref{sec:v-pred} and \cref{sec:method-cfg}. The architectural improvements are in \cref{tab:fid_ablation}(c). FID curves during training are in \cref{fig:learning-ablation}.
+
+\paragraph{MeanFlow as $v$-loss.}
+In \cref{tab:fid_ablation}\textbf{(a)}, we compare the original MF training formulation (\ref{eq:mf-loss}) with our iMF training formulation (\ref{eq:imf-vpred}). 
+We do not use CFG-conditioning here.
+We compare two variants of computing $v_\theta$ for the $\mathtt{JVP}$ usage in (\ref{eq:imf-vpred}): the boundary condition or auxiliary head.
+
+When using the variant of boundary condition  ($v_\theta = u_\theta(z_t,t,t)$), our formulation improves the case w/o CFG from an FID of 32.69 to 29.42, representing a solid gain of 3.27. This variant adds no extra parameters at training or inference time. This result demonstrates the impact of the legitimate regression formulation.
+
+When using the auxiliary head variant, our formulation also substantially improves over the original MF, from 32.69 to 30.76 w/o CFG, with a gain of 1.93. While the gain is smaller than that of using the boundary condition, it becomes relatively more significant in the case of ``w/ CFG'', suggesting a more capable model is desired to handle the more challenging scenario.
+
+
+\input{tables/ablation}
+
+
+
+In the case of ``w/ CFG'' (here, trained with a fixed $\omega$), using the boundary condition improves FID from 6.17 to 5.97 (\cref{tab:fid_ablation}\textbf{(a)}). While this relative gain is smaller, we observe that the same setting has a more pronounced impact on the same MF-XL model:
+\begin{center}
+\vspace{-.3em}
+\centering\footnotesize
+\begin{tabular}{y{120}|c}
+\textbf{FID, 1-NFE} & \textbf{MF-XL/2 model}, w/ CFG \\
+\hline
+original MF~\cite{mf}     
+    & 3.43 \\
+our $V_\theta$, with $v_\theta = u_\theta(z_t,t,t)$       
+    & \textbf{2.99} \\
+\end{tabular}
+\vspace{-.3em}
+\end{center}
+We hypothesize that when the model has more capacity, it can better leverage the capacity to learn $v_\theta$ by $u_\theta(z_t,t,t)$, and therefore benefits more from this formulation.
+
+Further, \cref{tab:fid_ablation}\textbf{(a)} shows that the auxiliary head achieves an FID of 5.68 w/ CFG, which is about 10\% relative improvement over the original MF.
+This auxiliary head introduces no extra parameters or compute at inference time.
+All these comparisons demonstrate that a reliable $v$ estimation \textit{as $\mathtt{JVP}$'s input} is critical for MeanFlow methods.
+
+
+\paragraph{Flexible guidance.}
+In \cref{tab:fid_ablation}\textbf{(b)}, we examine the CFG conditioning proposed in \cref{sec:method-cfg}. This ablation is best examined together with \cref{fig:train-inf-cfg}: the major advantage of CFG conditioning is on the inference-time flexibility, which may not be simply reflected by a single FID number.
+
+In \cref{tab:fid_ablation}\textbf{(b)}, when using the simpler $\omega$-conditioning (\ie only on the CFG scale $\omega$), the FID w/ CFG improves slightly from 5.68 to 5.52. This marginal gain is unsurprising, because the original MF \cite{mf} already had a near-optimal but fixed training-time  $\omega$, for this small model. This gain is more substantial for larger models, for which searching for a fixed training-time $\omega$ becomes impractical.
+
+\cref{tab:fid_ablation}\textbf{(b)} further shows that richer CFG-conditioning (\ie on $\Omega$) substantially improves the FID, by 1.11 to 4.57. This gain is because $\Omega$-conditioning enables CFG interval \cite{interval} \textit{at inference time}, and CFG interval is highly effective even for multi-step methods. 
+Our conditioning strategy does not affect the 1-NFE sampling behavior: $(t_\textrm{min}, t_\textrm{max})$ are turned into embeddings for 1-NFE generation.
+
+Interestingly, our CFG conditioning also enables us to mimic the ``w/o CFG'' behavior at inference time. We achieve this by setting $\omega=1.0$ at inference, which represents the ``no CFG'' case (see \cref{eq:cfg}). \cref{tab:fid_ablation}\textbf{(b)} shows that the FID at $\omega=1.0$ (``w/o CFG'') is significantly improved by 10 points, from 30.76 to 20.95. This suggests that training our models across a range of CFG scales can improve their \textit{generalization} performance, substantially improving their results even at a suboptimal $\omega$ value.
+
+\input{tables/v1_v2}
+
+\input{tables/imgnet-256}
+
+\paragraph{In-context conditioning.} 
+Thus far, our ablations have been using adaLN-zero \cite{dit} for conditioning. 
+In \cref{tab:fid_ablation}\textbf{(c)}, we replace it with our multi-token in-context conditioning (\cref{sec:method-arch}). As adaLN-zero is parameter-heavy, removing it yields a substantial 1/3 reduction in model size, from 133M to 89M. 
+Such a reduction is highly attractive for larger models.
+The FID is improved from 4.57 to 4.09.
+
+Finally, following \cite{vavae}, we incorporate general-purpose Transformer improvements: SwiGLU \cite{swiglu}, RMSnorm \cite{rmsnorm}, and RoPE \cite{rope}. These components put together improve FID from 4.09 to 3.82.  Training longer yields an extra gain, achieving 3.39 FID with this B-size model.
+
+
+
+\subsection{Comparisons with Original MeanFlow} 
+
+In \cref{tab:extra-metrics}, we provide a system-level comparison with the original MF \cite{mf}. We note that removing adaLN-zero makes it impossible to fully calibrate the model sizes, and as such, the B/M/L/XL notations are mainly for the ease of referring. In our designs: \textbf{(i)} the B-size model has the same depth and width in both MF and iMF; \textbf{(ii)} the M-size model is designed to have \textit{smaller} size and \textit{less} compute; and \textbf{(iii)} the L/XL-size models are designed to roughly match the model size of the MF counterparts (yet are still $\app$10\% smaller).
+
+Overall, \cref{tab:extra-metrics} shows that our iMF models have substantially better FID and IS results.
+Our iMF-XL/2 model achieves a 1-NFE FID of \textbf{1.72}, representing a \textbf{50\%} relative reduction compared to MF-XL/2’s 3.43. Qualitative examples are in \cref{fig:result_images} and appendix.
+
+
+\input{tables/visuals}
+
+\subsection{Comparisons with Previous Methods}  
+
+In \cref{tab:all_results}, we provide system-level comparisons with previous methods. We categorize the methods into:
+(i) fastforward generative models trained \textit{from scratch} (\cref{tab:all_results}, left); 
+(ii) fastforward generative models, \textit{distilled} from pre-trained multi-step models (\cref{tab:all_results}, mid-top); 
+(iii) multi-step diffusion/flow models (\cref{tab:all_results}, mid-bottom); (iv) GAN and autoregressive models (\cref{tab:all_results}, right). 
+
+\paragraph{Fastforward models from scratch.} \cref{tab:all_results} (left) shows that our iMF substantially outperforms other fastforward models that are also trained from scratch. 
+In addition, our 1-NFE FID of 1.72 also outperforms those \textit{distilled} from pre-trained models (\cref{tab:all_results}, mid-top), suggesting that training from scratch can produce highly competitive fastforward models.
+When relaxing NFE to 2, iMF achieves an FID of \textbf{1.54}. This further closes the gap with the \textit{many-step} diffusion/flow models (\cref{tab:all_results}, mid-bottom).
