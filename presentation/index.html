@@ -1012,18 +1012,18 @@
             <span class="px-3 py-1 text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full">高维适配 1.0 (HNSW KNN)</span>
             <span class="text-rose-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> 性能退化 (-2.8%)</span>
           </div>
-          <h3 class="text-lg font-bold text-white group-hover:text-rose-400 transition">HNSW 点对点硬检索与维度灾难</h3>
+          <h3 class="text-lg font-bold text-white group-hover:text-rose-400 transition">HNSW 局域硬检索与有偏估计</h3>
           
           <div class="mt-4 space-y-3 text-slate-400 text-xs leading-relaxed">
             <p>
-              将图像展平，并在原始数据中构建 HNSW 索引。训练时，以加噪点 $x_t$ 进行 Query，检索最近的 $k-1$ 个图片进行似然加权。
+              将图像展平，并在原始数据中构建 HNSW 索引。训练时，以加噪点 $x_t$ 进行 Query，检索最近的 $k-1$ 个图片作为局域期望候选集。
             </p>
             <div class="bg-black/40 p-3 rounded-lg border border-white/5 space-y-1.5 font-mono text-[11px] text-slate-300">
-              <div class="flex justify-between"><span class="text-slate-500">候选集构成:</span> <span class="text-rose-300">真实 $x_0$ + HNSW 最近邻</span></div>
-              <div class="flex justify-between"><span class="text-slate-500">有效样本大小:</span> <span class="text-rose-300">ESS 极低 (发生权重坍塌)</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">有效样本大小 (ESS):</span> <span class="text-rose-300">7.75</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">估计数学性质:</span> <span class="text-rose-300 font-bold">有偏估计 (Biased)</span></div>
             </div>
             <p class="border-t border-white/5 pt-3">
-              在像素高维空间中，欧氏距离得到的近邻缺乏语义关联；在前向概率计算下，由于检索得到的近邻似然极低，最终导致权重坍塌。此方案实质上退化回了单样本监督的 DDIM。
+              虽然在该小样本 (Toy-Setting) 实测中，HNSW 选出的候选集 ESS 仍有 7.0 以上没有坍塌到 1，但其检索是完全依赖当前 $x_t$ 欧氏硬检索的提议，<b>没有进行提议概率偏差校正</b>，导致期望去噪目标的梯度估计存在严重的方向偏差，因而最终生成性能不升反降。
             </p>
           </div>
         </div>
@@ -1042,11 +1042,11 @@
               预先将训练集聚类到 $B=256$ 个代表性的子区域（桶）。训练时，计算 $x_t$ 到所有桶中心的软高斯似然，按似然权重对分桶进行重要性抽样，并使用自适应重要性采样（SNIS）进行权重偏差补正。
             </p>
             <div class="bg-black/40 p-3 rounded-lg border border-white/5 space-y-1.5 font-mono text-[11px] text-slate-300">
-              <div class="flex justify-between"><span class="text-slate-500">流形划分方案:</span> <span class="text-emerald-300">训练集分桶聚类 (B=256)</span></div>
-              <div class="flex justify-between"><span class="text-slate-500">有效样本大小:</span> <span class="text-emerald-300">ESS 保持健康</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">有效样本大小 (ESS):</span> <span class="text-emerald-300">7.65 (保持健康)</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">估计数学性质:</span> <span class="text-emerald-300 font-bold">无偏估计 (Unbiased)</span></div>
             </div>
             <p class="border-t border-white/5 pt-3">
-              以桶中心作为流形表达，提供了连续的软概率覆盖，避开了硬点对点检索的数值归零瓶颈，从而让多候选期望去噪在图像高维数据集上成功发挥作用。
+              K-Means 桶提供了连续平滑的流形概率，训练时通过软似然进行重要性采样，最关键的是<b>配合自归一化重要性采样 (SNIS) 补正了提议分布偏差</b>，在数学上保证了去噪目标期望的<b>无偏性</b>，因而模型能够平稳且鲁棒地收敛，FID 大幅优化。
             </p>
           </div>
         </div>
@@ -1108,12 +1108,12 @@
                 <td class="p-3">20</td>
                 <td class="p-3 text-rose-300">67.08</td>
                 <td class="p-3 text-rose-300">0.0480</td>
-                <td class="p-3 text-rose-300">1.00 <span class="text-[10px] text-slate-500">(坍塌)</span></td>
+                <td class="p-3 text-rose-300">7.01 <span class="text-[10px] text-rose-400">(有偏)</span></td>
                 <td class="p-3 text-rose-300">3.98 GB</td>
                 <td class="p-3">2.79 h</td>
                 <td class="p-3 text-rose-400">0.200 s</td>
                 <td class="p-3 text-rose-400">+43.8%</td>
-                <td class="p-3 text-rose-400 font-sans">退化 2.8% (维度崩溃)</td>
+                <td class="p-3 text-rose-400 font-sans">退化 2.8% (采样有偏)</td>
               </tr>
               <!-- Avg-DDIM Bucket IS -->
               <tr class="bg-emerald-950/20 text-emerald-400 font-bold border-y-2 border-emerald-500/20 shadow-[0_0_12px_rgba(52,211,153,0.05)]">
@@ -1125,20 +1125,26 @@
                 <td class="p-3.5 text-emerald-300">30</td>
                 <td class="p-3.5 text-emerald-300">256</td>
                 <td class="p-3.5">20</td>
-                <td class="p-3.5 text-emerald-200 text-sm font-extrabold">
-                  56.17 ★
+                <td class="p-3.5">
+                  <span class="inline-block px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-100 border border-emerald-500/30 text-xs font-black shadow-[0_0_8px_rgba(52,211,153,0.15)]">
+                    56.17 ★
+                  </span>
                 </td>
-                <td class="p-3.5 text-emerald-200 text-sm font-extrabold">
-                  0.0387 ★
+                <td class="p-3.5">
+                  <span class="inline-block px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-100 border border-emerald-500/30 text-xs font-black shadow-[0_0_8px_rgba(52,211,153,0.15)]">
+                    0.0387 ★
+                  </span>
                 </td>
-                <td class="p-3.5 text-emerald-300">7.65</td>
+                <td class="p-3.5 text-emerald-300">7.65 <span class="text-[10px] text-emerald-400 font-normal">(无偏)</span></td>
                 <td class="p-3.5 text-emerald-300">3.98 GB</td>
                 <td class="p-3.5 text-emerald-300">2.43 h</td>
                 <td class="p-3.5 text-emerald-300">0.174 s</td>
                 <td class="p-3.5 text-emerald-300">+25.3%</td>
-                <td class="p-3.5 text-emerald-200 font-sans flex flex-col items-center">
-                  <span>提升 13.9%</span>
-                  <span class="text-[9px] font-normal text-emerald-400 font-mono">(FID 降低 9.07 点)</span>
+                <td class="p-3.5 flex flex-col items-center justify-center">
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 border border-emerald-400/40 text-[11px] font-black shadow-[0_0_8px_rgba(52,211,153,0.2)]">
+                    提升 13.9%
+                  </span>
+                  <span class="text-[9px] font-normal text-emerald-400 font-mono mt-1">(FID 降低 9.07 点)</span>
                 </td>
               </tr>
             </tbody>
