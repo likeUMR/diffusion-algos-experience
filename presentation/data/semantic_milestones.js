@@ -13,7 +13,7 @@ const semanticMilestones = [
     link: "https://arxiv.org/abs/2105.05233",
     status: "外挂引导鼻祖",
     pain_point: "早期的扩散模型（如无条件 DDPM）纯粹是在无先验指导下从高斯噪声中去噪，无法控制具体生成什么类别。如何引入语义条件以指导扩散模型进行定向类别生成，是扩散实用化的最大瓶颈。",
-    breakthrough: "<b>外挂分类器，梯度借流：</b> 训练无条件扩散模型的同时，在带有噪图像数据集上训练一个判别式图像分类器 $p_\\phi(y|x_t)$。在采样逆向步骤中，用该分类器预测当前有噪图像 $x_t$ 所属类别 $y$ 的对数概率，并计算对 $x_t$ 的梯度 $\\nabla_{x_t} \\log p_\\phi(y|x_t)$。该梯度作为“外力”直接去纠正去噪方向，使粒子向特定类别的特征流形靠拢。一举在生图指标上打败 GAN，确立统治地位。",
+    breakthrough: "<b>外挂分类器，梯度借流：</b> 训练无条件扩散模型的同时，在带有噪图像数据集上训练一个判别式图像分类器 $p_\\phi(y|x_t)$。在采样逆向步骤中，用该分类器预测当前有噪图像 $x_t$ 所属类别 $y$ 的对数概率，并计算对 $x_t$ 的梯度 $\\nabla_{x_t} \\log p_\\phi(y|x_t)$。该梯度作为“外力”直接去纠正去噪方向，使粒子向特定类别的特征流形靠拢，并在当时的生图指标上取得优于 GAN 的结果。",
     formula: `
       <div class="space-y-3">
         <div>
@@ -185,8 +185,8 @@ const semanticMilestones = [
     authors: ["Robin Rombach", "Andreas Blattmann", "Björn Ommer (Runway / LMU)"],
     venue: "CVPR 2022 (Oral / Best Paper Nominee)",
     link: "https://arxiv.org/abs/2112.10752",
-    status: "交叉注意力统治时代",
-    pain_point: "早期的语义条件注入是通过将条件 Embedding（如文本、类别）与时间 Embedding 机械相加/拼接（如 early CFG 里的 Add/Concat）。这在机制上是一个<b>低维的全局语义压缩项</b>，会导致两个毁灭性硬伤：1. 无法进行精细的局部空间语义绑定（如<i>“左边是苹果，右边是香蕉”</i>，全局注入会让两个水果混叠）；2. 语义强行与图像空间的分辨率和底层细节强绑定，使得条件难以实现即插即用的解耦控制。",
+    status: "交叉注意力主流时代",
+    pain_point: "早期的语义条件注入是通过将条件 Embedding（如文本、类别）与时间 Embedding 机械相加/拼接（如 early CFG 里的 Add/Concat）。这在机制上是一个<b>低维的全局语义压缩项</b>，会导致两个明显问题：1. 无法进行精细的局部空间语义绑定（如<i>“左边是苹果，右边是香蕉”</i>，全局注入会让两个水果混叠）；2. 语义强行与图像空间的分辨率和底层细节强绑定，使得条件难以实现即插即用的解耦控制。",
     breakthrough: "<b>交叉注意力，空间-语义完全解耦：</b> 引入 <b>Cross-Attention (交叉注意力) 机制</b>。文本编码器（如 CLIP Text ViT 或 T5）输出开放域的一维文本 token 序列 $e \\in \\mathbb{R}^{L \\times d_e}$。将 U-Net 内部任意一层的图像空间特征图 $F \\in \\mathbb{R}^{HW \\times d}$ 投影为 Query (Q，查询，对应图像像素的空间局部)；而将文本 tokens $e$ 投影为 Key (K，键) 和 Value (V，值)。通过像素对单词的注意力加权对齐，文本中的不同词汇能**自适应、精准、局部化地附着在图像的空间局部斑块上**。彻底解耦了全局语义和局部纹理，一举奠定了文生图系统的底层物理架构。",
     formula: `
       <div class="space-y-3">
@@ -204,7 +204,7 @@ const semanticMilestones = [
         </div>
       </div>
     `,
-    cross_relation: "交叉注意力机制的引入是扩散模型发展史上划时代的创新。它完美兼顾了灵活性（任何模态：音频、文本、图像都可以转为 token 序列并经由 Cross-Attention 输入）与精准度，直接繁衍出了后面的 Stable Diffusion 1.x/2.x、SDXL、ControlNet、IP-Adapter，彻底统治了整个开源文生图社区。",
+    cross_relation: "交叉注意力机制的引入是扩散模型发展史上划时代的创新。它兼顾了灵活性（任何模态：音频、文本、图像都可以转为 token 序列并经由 Cross-Attention 输入）与精准度，直接影响了后面的 Stable Diffusion 1.x/2.x、SDXL、ControlNet、IP-Adapter，并成为开源文生图社区的重要基础组件。",
     tips: [
       "<b>讲解痛点突破：</b> 很多同学会把 LDM 的 Latent 空间（VAE）与 Cross-Attention 的引入逻辑混淆。你在汇报时应当极富条理地指出，LDM 实际上完成了<b>两大完全独立维度的完美解耦</b>：1. <b>图像空间维度解耦</b>：通过 VAE 将像素空间压缩至低维隐空间，清除了不必要的像素级算力开销；2. <b>条件注入维度解耦</b>：通过 Cross-Attention 代替传统的粗暴相加，让空间纹理和语义理解各司其职。这一双重解耦的大局观分析能直接把你的汇报推到博士级水平。",
       "<b>切入视角建议：</b> 突出其无与伦比的“跨模态承载力”。在 Cross-Attention 机制下，扩散主干只管查询 $Q$，不需要管 Key, Value 是来自文本、音频还是其他图像。这启发了大家：只需要用不同编码器输出序列 $e$，模型就可以实现一键跨模态条件切换，为后续万物皆可引导的 ControlNet 埋下了精妙伏笔。"

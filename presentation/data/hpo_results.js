@@ -43,10 +43,10 @@ const hpoData = {
           </table>
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed font-sans pt-1">
-          <span class="text-cyan-400 font-bold">硬核透析：</span>
-          1. <b>Avg-DDIM (k=30 Gauss std=0.3)</b> 成功登顶 100 步段位绝对冠军（<b>0.004435</b>），证明了局部流形方向平均化在多步确定性去噪下的极致优势。<br>
-          2. <b>V-Learning（速度预测）</b> 展现出次席统治力（<b>0.006168</b>），几乎完美拟合了一维螺旋流形。<br>
-          3. <b>Consistency Models（一致性模型）</b> 此时因为多步积分反演的投影重叠误差，发生了致命退化崩溃。
+          <span class="text-cyan-400 font-bold">结果解读：</span>
+          1. <b>Avg-DDIM (k=30 Gauss std=0.3)</b> 在该设置下取得最低 Chamfer Distance（<b>0.004435</b>），说明局部流形方向平均化在多步确定性去噪中可能带来优势。<br>
+          2. <b>V-Learning（速度预测）</b> 表现稳定（<b>0.006168</b>），对一维螺旋流形有较好的拟合能力。<br>
+          3. <b>Consistency Models（一致性模型）</b> 在多步级联时指标退化，可能与一致性投影并不天然适合反复积分有关。
         </div>
       </div>
     `
@@ -90,10 +90,10 @@ const hpoData = {
           </table>
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed font-sans pt-1">
-          <span class="text-cyan-400 font-bold">硬核透析：</span>
-          1. <b>Avg-DDIM</b> 在 NFE=20 依旧完美霸榜（<b>0.007737</b>），比经典 DDIM 提升了 <b>20.7%</b>，大幅减弱了少步采样下的骨架抖动偏离。<br>
+          <span class="text-cyan-400 font-bold">结果解读：</span>
+          1. <b>Avg-DDIM</b> 在 NFE=20 下仍取得该组最低 CD（<b>0.007737</b>），比经典 DDIM 改善 <b>20.7%</b>，可能减弱了少步采样下的骨架抖动偏离。<br>
           2. <b>DDIM 的确定性去噪</b> 依靠无随机噪声优势超越了 DDPM（<b>0.009754</b>）。<br>
-          3. <b>Mean Flows（均值流）</b> 的全天候适应极佳，CD 稳定保持在 0.0890 处。
+          3. <b>Mean Flows（均值流）</b> 在不同步数下表现相对稳定，CD 保持在 0.0890 附近。
         </div>
       </div>
     `
@@ -112,7 +112,7 @@ const hpoData = {
           <span class="font-bold text-white">NFE = 5</span>
         </div>
         <p class="text-[11px] text-slate-400 leading-relaxed">
-          跨入极限少步领域后，绝大多数传统 ODE/SDE 求解器因为巨大的单步长离散误差，去噪路径直接脱轨崩溃。
+          进入极限少步设置后，传统 ODE/SDE 求解器会受到较大的单步长离散误差影响，去噪路径更容易偏离目标流形。
         </p>
         <div class="overflow-x-auto">
           <table class="w-full text-[10px] text-left border-collapse border border-white/5">
@@ -137,16 +137,16 @@ const hpoData = {
           </table>
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed font-sans pt-1">
-          <span class="text-cyan-400 font-bold">硬核透析：</span>
-          1. <b>Avg-DDIM (k=30 Gauss)</b> 依旧保持在 5 步段位统治优势（<b>0.018706</b>），在极其弯折大步长的轨迹积分中凭借超顺滑的流形引导表现胜出。<br>
-          2. <b>Mean Flows (均值流)</b> 显露极强稳健性，由于其预测的是全局平均轨迹速度，即使仅用 5 步，宏观去噪方向依然极度准确（CD=<b>0.0918</b>）。<br>
+          <span class="text-cyan-400 font-bold">结果解读：</span>
+          1. <b>Avg-DDIM (k=30 Gauss)</b> 在 5 步设置下仍取得该组最低 CD（<b>0.018706</b>），说明局部期望目标在大步长轨迹积分中可能具有稳定作用。<br>
+          2. <b>Mean Flows (均值流)</b> 显示出较强稳健性，由于其预测的是全局平均轨迹速度，即使仅用 5 步，宏观去噪方向仍相对稳定（CD=<b>0.0918</b>）。<br>
           3. 传统 DDPM/DDIM 的毛刺外溢现象在此开始暴露。
         </div>
       </div>
     `
   },
   1: {
-    title: "NFE = 1 零蒸馏单步生成极限大考",
+    title: "NFE = 1 零蒸馏单步生成测评",
     images: {
       generation: "../results/hpo_nfe_1_generation_overview.png",
       loss: "../results/hpo_nfe_1_loss_overview.png",
@@ -159,7 +159,7 @@ const hpoData = {
           <span class="font-bold text-white">NFE = 1</span>
         </div>
         <p class="text-[11px] text-slate-400 leading-relaxed">
-          单步生图：所有依赖离散迭代采样的传统扩散流派在这一大关惨遭大面积团灭，只留下专门为“一步到位”设计的超级新星。
+          单步生成设置对依赖离散迭代采样的传统扩散方法更不友好，而专门面向一步映射设计的方法通常更具优势。
         </p>
         <div class="overflow-x-auto">
           <table class="w-full text-[10px] text-left border-collapse border border-white/5">
@@ -184,9 +184,9 @@ const hpoData = {
           </table>
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed font-sans pt-1">
-          <span class="text-cyan-400 font-bold">硬核透析：</span>
-          1. <b>Consistency Models（一致性模型）</b> 拿下单步第一（<b>0.0898</b>）！其自边界一致性投影在此立下奇功。<br>
-          2. <b>Mean Flows（均值流）</b> 紧随其后拿下 <b>0.1074</b> 的优秀表现。<br>
+          <span class="text-cyan-400 font-bold">结果解读：</span>
+          1. <b>Consistency Models（一致性模型）</b> 在单步设置下取得最低 CD（<b>0.0898</b>），其边界一致性投影与该任务较为匹配。<br>
+          2. <b>Mean Flows（均值流）</b> 也取得较好结果（<b>0.1074</b>）。<br>
           3. <b>Avg-DDIM</b> 虽在 NFE=1 下大幅优于原始 DDIM（从 0.3151 减少到 0.2885），但其骨架由于缺乏多步离散积分而难以在 1 步下完全展现。
         </div>
       </div>

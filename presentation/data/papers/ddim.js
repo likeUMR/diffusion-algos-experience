@@ -98,7 +98,7 @@ const ddimDeepDive = {
           {
             name: "高维噪声球面线性插值 (Slerp)",
             latex: "\\mathbf{x}_T^{(\\alpha)}=\\frac{\\sin((1-\\alpha)\\theta)}{\\sin\\theta}\\mathbf{x}_T^{(0)}+\\frac{\\sin(\\alpha\\theta)}{\\sin\\theta}\\mathbf{x}_T^{(1)}",
-            explanation: "因为确定性概率流的一一映射性，我们可以将两张图对应的隐噪向量 x_T 通过球面线性插值混合。生成出来的演化图像展现了惊人的物理语义平滑渐变，无任何突变失真。"
+            explanation: "因为确定性概率流的一一映射性，我们可以将两张图对应的隐噪向量 x_T 通过球面线性插值混合。生成出来的演化图像通常呈现较平滑的语义渐变，减少突变失真。"
           }
         ]
       }

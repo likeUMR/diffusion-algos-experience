@@ -924,9 +924,9 @@ function generateDynamicHpoLeaderboard(nfe, originalTableHTML) {
       </div>
   `;
 
-  // 3. 将原 milestones 附带的、宝贵的“硬核透析”分析文本提取出来并拼在最下方
+  // 3. 将原 milestones 附带的结果解读文本提取出来并拼在最下方
   let analysisPart = '';
-  if (originalTableHTML && originalTableHTML.includes('硬核透析：')) {
+  if (originalTableHTML && originalTableHTML.includes('结果解读：')) {
     const parts = originalTableHTML.split('pt-1">');
     if (parts.length > 1) {
       analysisPart = '<div class="text-[9.5px] text-slate-400 leading-relaxed font-sans pt-1.5">' + parts[1];

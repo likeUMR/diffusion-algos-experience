@@ -12,7 +12,7 @@ const milestones = [
     authors: "Jonathan Ho, Ajay Jain, Pieter Abbeel",
     venue: "NeurIPS 2020",
     link: "https://arxiv.org/abs/2006.11239",
-    status: "扩散统治时代开启",
+    status: "扩散主流时代开启",
     bibtex: `@inproceedings{ho2020denoising,
   title={Denoising Diffusion Probabilistic Models},
   author={Ho, Jonathan and Jain, Ajay and Abbeel, Pieter},
@@ -146,7 +146,7 @@ const milestones = [
         </div>
         <div>
           <span class="text-[10px] font-bold text-emerald-400 block mb-0.5">连续时间积分损失 (Continuous VLB Loss)</span>
-          <p class="text-[11px] text-slate-300">将传统离散求和 VLB 升级为连续时间积分形式，数学极其硬核优雅：</p>
+          <p class="text-[11px] text-slate-300">将传统离散求和 VLB 升级为连续时间积分形式，数学形式更为紧凑：</p>
           <div class="bg-black/40 p-2 my-1.5 rounded text-center border border-white/5 font-mono text-xs">
             $\\mathcal{L}_{\\text{diff}} = -\\frac{1}{2} \\int_0^1 \\gamma'(t) \\mathbb{E} \\left[ \\|\\epsilon - \\epsilon_\\theta(x_t, t)\\|^2 \\right] dt$
           </div>
@@ -310,8 +310,8 @@ const milestones = [
       </div>
     `,
     original_metrics: [
-      "不需要依赖任何大型预训练模型的教师网络蒸馏，Consistency Models 能够完美在 1~2 步内输出极具真实感、纹理清晰的画面。",
-      "单步 FID 指标全面吊打以往所有 1-NFE 方案，彻底打通实时渲染流水线。"
+      "不需要依赖任何大型预训练模型的教师网络蒸馏，Consistency Models 能够在 1~2 步内输出较高质量、纹理清晰的画面。",
+      "单步 FID 指标显著优于以往多种 1-NFE 方案，为实时渲染流水线提供了新的可能性。"
     ],
     my_experiments: {
       nfe_best: "1",
@@ -320,7 +320,7 @@ const milestones = [
       metric_5: "0.107200",
       metric_1: "0.089832",
       best_hyper: "HxB = 128x3 | Epochs = 753 | lr = 9.32e-4 | wd = 6.69e-5",
-      insights: "<b>极为震撼的性质反转！</b> 我们的 HPO 评测揭示了 Consistency Models 最独特的灵魂：<b>它的效果在 NFE = 1 下竟然是最好的（CD = 0.089832）</b>，直接比 DDPM 在 NFE=1 下（0.315）领先数个档次，海螺线骨架在 1 步前向下直接秒出！更震撼的是，随着推理步数增大（NFE 升到 100），它的 CD 指标反而<b>极度退化崩溃（CD=0.3711）</b>。原因是一致性模型是专为单步极速投影训练的，强行用多步 ODE 求解器去级联一致性映射函数，会由于累积投影方向偏离而发生毁灭性漂移。"
+      insights: "<b>性质反转现象：</b> 我们的 HPO 评测显示，Consistency Models 在 NFE = 1 下取得最佳效果（CD = 0.089832），显著优于 DDPM 在 NFE=1 下的结果（0.315），海螺线骨架在 1 步前向下即可形成。随着推理步数增大（NFE 升到 100），其 CD 指标反而退化至 0.3711。可能原因是：一致性模型专为单步投影训练，若用多步 ODE 求解器级联一致性映射函数，会产生累积投影方向偏离。"
     }
   },
   {
@@ -341,7 +341,7 @@ const milestones = [
 }`,
     bg_breakthroughs: [
       "<b>核心痛点：</b> 一致性模型虽然单步出神入化，但训练极繁复不稳（重度依赖 EMA 及目标双网络或教师蒸馏），且多步采样直接退化。有没有可能直接在底层的微分几何上进行大一统，用最普通的单网络自然学出单步无损生图？",
-      "<b>革命性突破：</b> 何恺明团队在 NeurIPS 2025 强势提出 Mean Flows（均值流）。<b>不作工程修补，直接在几何定义上掀桌子：</b> 放弃计算繁琐的、多步 ODE 中的“瞬时速度”，转而让神经网络直接预测噪声起点 $x_t$ 到无噪终点 $x_1$ 之间的<b>平均速度 (Mean Velocity) $u(x_t, t)$</b>。推导出了惊艳的<b>均值流恒等式（MeanFlow Identity）</b>，神经网络无需计算昂贵的任何积分，通过单网络普通 MSE 回归即可完美参数化学习。在第二代 iMF 中解锁了 CFG 强度自适应，横扫单步生图榜单。"
+      "<b>革命性突破：</b> 何恺明团队在 NeurIPS 2025 提出 Mean Flows（均值流）。该方法不再局限于工程层面的采样器修补，而是从几何定义上重新建模：放弃计算繁琐的、多步 ODE 中的“瞬时速度”，转而让神经网络直接预测噪声起点 $x_t$ 到无噪终点 $x_1$ 之间的<b>平均速度 (Mean Velocity) $u(x_t, t)$</b>。其均值流恒等式（MeanFlow Identity）使神经网络无需显式计算昂贵积分，通过单网络普通 MSE 回归即可进行参数化学习。在第二代 iMF 中，方法进一步解锁了 CFG 强度自适应，并在单步生成指标上取得较强表现。"
     ],
     math_details: `
       <div class="space-y-3">

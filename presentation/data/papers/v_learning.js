@@ -72,7 +72,7 @@ const vLearningDeepDive = {
           {
             name: "切线速度定义与本底恢复",
             latex: "\\mathbf{v}\\equiv\\alpha_t\\epsilon-\\sigma_t\\mathbf{x},\\quad \\hat{\\mathbf{x}}=\\alpha_t\\mathbf{z}_t-\\sigma_t\\hat{\\mathbf{v}}_\\theta(\\mathbf{z}_t)",
-            explanation: "速度 v 具有惊人的对称性：它既代表了噪声和数据的差值，又代表了旋转微积分的切向量。预测 v 后，可以通过与 z_t 的简单线性拼合直接、无除零溢出地恢复出干净的图像估计。"
+            explanation: "速度 v 具有有用的对称性：它既代表了噪声和数据的差值，又代表了旋转微积分的切向量。预测 v 后，可以通过与 z_t 的简单线性拼合直接、无除零溢出地恢复出干净的图像估计。"
           },
           {
             name: "V-Prediction 的 SNR+1 权重形式",
@@ -151,7 +151,7 @@ const vLearningDeepDive = {
     {
       key: "v_learning_malamute",
       title: "Progressive Distillation 4步极速生图特写",
-      caption: "原论文展示的 4-step 极速生成样本特写（阿拉斯加雪橇犬 Malamute）。经过 V-prediction 和折半积分蒸馏，学生模型仅需 4 次前向调用（NFE=4）便能以惊人的保真度复现出极其浓密、顺滑的动物毛发细节和柔和逼真的光影，彻底告别了传统去噪的长链累加。",
+      caption: "原论文展示的 4-step 快速生成样本特写（阿拉斯加雪橇犬 Malamute）。经过 V-prediction 和折半积分蒸馏，学生模型仅需 4 次前向调用（NFE=4）便能以较高保真度复现动物毛发细节和柔和光影，显著减少了传统去噪的长链累加开销。",
       src: "assets/papers/v_learning/source/extracted/figures/samples/malamute_4_steps.png"
     }
   ],
@@ -175,7 +175,7 @@ const vLearningDeepDive = {
         ["NFE = 5 (极限少步)", "0.022651", "0.008125 ★", "提升 64.1% (未蒸馏模型此时已偏离流形；蒸馏后依然咬死螺旋骨架)"],
         ["NFE = 1 (无蒸馏单步)", "0.288564", "0.021100 ★", "提升 92.6% (实现了极高品质的极速一阶逼近生成)"]
       ],
-      note: "核心实验洞察：等效算力约束下的横向大考中，V-learning（尤其是 v-prediction 参数化结合 progressive distillation）展现了令人惊叹的少步稳定性。未蒸馏的 DDIM 在 NFE=5 极限步数下由于欧拉大步长的一阶截断偏折，已经发生严重的轨道偏离，使得螺旋点云发散为“胖粗麻绳”。而经过逐轮折半蒸馏的 student，凭借网络本身对“两步积分”的摊销学习能力，在 NFE=5 甚至是 NFE=1 下，都死死咬住了 2D 海螺线骨架，CD 距离达到了震撼的 0.008125 和 0.021100！"
+      note: "核心实验洞察：在等效算力约束下的横向评测中，V-learning（尤其是 v-prediction 参数化结合 progressive distillation）展现了较强的少步稳定性。未蒸馏的 DDIM 在 NFE=5 极限步数下由于欧拉大步长的一阶截断偏折，出现明显轨道偏离，使得螺旋点云发散为“胖粗麻绳”。而经过逐轮折半蒸馏的 student，凭借网络本身对“两步积分”的摊销学习能力，在 NFE=5 和 NFE=1 下仍能较好贴合 2D 海螺线骨架，CD 距离分别达到 0.008125 和 0.021100。"
     }
   ],
   
