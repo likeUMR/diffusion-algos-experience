@@ -17,6 +17,10 @@ let currentMilestoneId = 'm-ddpm'; // 默认激活第一个：DDPM
 let currentDeckTab = 'abstract'; // 默认激活第一个 Tab：论文贡献
 let activeAlgoIndex = 0; // 当前选中的算法索引
 
+// 语义引导学术大视窗状态
+let currentSemanticId = 's-classifier'; // 默认激活第一个：Classifier Guidance
+let currentSemanticTab = 'abstract'; // 默认激活第一个 Tab：论文精读
+
 // 样式配置，为三大流派（随机轨迹、直线一阶流、均值单步流）配置极致 literal Tailwind CSS 样式
 const schoolStyles = {
   trajectory: {
@@ -73,7 +77,7 @@ const schoolStyles = {
 window.addEventListener('DOMContentLoaded', () => {
   // 初始化海螺线物理仿真器
   simulator = new PhysicsSimulator('simulator-canvas');
-  simulator.selectParadigm('mean-flows');
+  selectParadigm('mean-flows');
 
   // 初始化物理流形数据集海螺线展示画布
   initDatasetSpiralCanvas();
@@ -83,6 +87,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 渲染右侧激活学术大视窗页面（默认 DDPM）
   renderActiveMilestone();
+
+  // 渲染语义引导演进编年史与大视窗
+  renderSemanticTimeline();
+  renderActiveSemantic();
 
   // 初始化我的 HPO 测评 Dashboard
   initHpoDashboardControls();
@@ -916,9 +924,9 @@ function generateDynamicHpoLeaderboard(nfe, originalTableHTML) {
       </div>
   `;
 
-  // 3. 将原 milestones 附带的、宝贵的“硬核透析”分析文本提取出来并拼在最下方
+  // 3. 将原 milestones 附带的结果解读文本提取出来并拼在最下方
   let analysisPart = '';
-  if (originalTableHTML && originalTableHTML.includes('硬核透析：')) {
+  if (originalTableHTML && originalTableHTML.includes('结果解读：')) {
     const parts = originalTableHTML.split('pt-1">');
     if (parts.length > 1) {
       analysisPart = '<div class="text-[9.5px] text-slate-400 leading-relaxed font-sans pt-1.5">' + parts[1];
@@ -1455,6 +1463,46 @@ function resetSimulation() {
 // 切换沙盒算法
 function selectParadigm(key) {
   if (simulator) simulator.selectParadigm(key);
+
+  // 更新按钮高亮 UI 状态
+  const buttons = document.querySelectorAll('.paradigm-btn');
+  buttons.forEach(btn => {
+    const isTarget = btn.id === `btn-${key}`;
+    const descSpan = btn.children[1];
+    const dotSpan = btn.querySelector('.rounded-full');
+
+    if (isTarget) {
+      // 激活状态样式
+      btn.classList.remove('border-white/5', 'bg-slate-800/40', 'hover:bg-slate-800/80', 'text-slate-300');
+      btn.classList.add('border-indigo-500/30', 'bg-indigo-500/10', 'hover:bg-indigo-500/20', 'text-indigo-300', 'ring-1', 'ring-indigo-500/30');
+      
+      if (descSpan) {
+        descSpan.classList.remove('text-slate-500', 'font-normal');
+        descSpan.classList.add('text-indigo-400', 'font-semibold');
+      }
+      
+      if (dotSpan) {
+        if (key === 'mean-flows') {
+          dotSpan.classList.add('animate-ping');
+        } else {
+          dotSpan.classList.add('animate-pulse');
+        }
+      }
+    } else {
+      // 未激活状态样式
+      btn.classList.remove('border-indigo-500/30', 'bg-indigo-500/10', 'hover:bg-indigo-500/20', 'text-indigo-300', 'ring-1', 'ring-indigo-500/30');
+      btn.classList.add('border-white/5', 'bg-slate-800/40', 'hover:bg-slate-800/80', 'text-slate-300');
+      
+      if (descSpan) {
+        descSpan.classList.remove('text-indigo-400', 'font-semibold');
+        descSpan.classList.add('text-slate-500', 'font-normal');
+      }
+      
+      if (dotSpan) {
+        dotSpan.classList.remove('animate-ping', 'animate-pulse');
+      }
+    }
+  });
 }
 
 // 12. 学术 BibTeX modal 引用弹窗
@@ -1808,6 +1856,207 @@ function updateThemeIcons() {
     toggleBtn.innerHTML = '<i data-lucide="sun" class="w-5 h-5"></i>';
   } else {
     toggleBtn.innerHTML = '<i data-lucide="moon" class="w-5 h-5"></i>';
+  }
+  lucide.createIcons();
+}
+
+// =======================================================
+// 🎨 SEMANTIC GUIDANCE EVOLUTION CONTROL SYSTEM (语义引导演进控制系统)
+// =======================================================
+
+function renderSemanticTimeline() {
+  const container = document.getElementById('sidebar-semantic-nav');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (typeof semanticMilestones === 'undefined') return;
+
+  semanticMilestones.forEach((node, index) => {
+    const isSelected = node.id === currentSemanticId;
+    const activeClass = isSelected 
+      ? 'border-emerald-500/40 bg-emerald-500/10 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5' 
+      : 'border-emerald-500/10 hover:border-emerald-500/30';
+    const bulletClass = isSelected ? 'bg-emerald-400 border-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'border-emerald-500 text-emerald-400';
+    const bulletInnerClass = isSelected ? 'bg-white' : 'bg-emerald-500';
+    const textClass = isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white';
+    const lineClass = index === semanticMilestones.length - 1 ? 'hidden' : '';
+    const badgeClass = isSelected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-black/35 text-slate-400';
+
+    const itemHTML = `
+      <div onclick="selectSemanticMilestone('${node.id}')" class="relative flex items-center gap-3.5 p-3 rounded-xl cursor-pointer transition duration-300 group border ${activeClass}">
+        <!-- 连接竖线 -->
+        <div class="absolute left-6 top-8 bottom-0 w-0.5 bg-white/10 -translate-x-1/2 -z-10 ${lineClass}"></div>
+        
+        <!-- 粒子圈 -->
+        <div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 border-2 z-10 transition duration-300 ${bulletClass}">
+          <div class="w-1.5 h-1.5 rounded-full ${bulletInnerClass}"></div>
+        </div>
+        
+        <!-- 文字信息 -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-1.5">
+            <span class="text-[10px] font-mono text-slate-500 font-bold">${node.year}</span>
+            <span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold ${badgeClass}">${node.status}</span>
+          </div>
+          <h4 class="text-xs font-extrabold truncate mt-0.5 ${textClass}">${node.title}</h4>
+        </div>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', itemHTML);
+  });
+
+  lucide.createIcons();
+}
+
+function selectSemanticMilestone(id) {
+  currentSemanticId = id;
+  renderSemanticTimeline();
+  renderActiveSemantic();
+}
+
+function switchSemanticTab(tabName) {
+  currentSemanticTab = tabName;
+  renderActiveSemantic();
+}
+
+function renderActiveSemantic() {
+  if (typeof semanticMilestones === 'undefined') return;
+  const node = semanticMilestones.find(m => m.id === currentSemanticId);
+  if (!node) return;
+
+  // 1. 渲染 Header Card
+  const headerEl = document.getElementById('semantic-paper-header');
+  if (headerEl) {
+    headerEl.innerHTML = `
+      <!-- 背景绿光晕 -->
+      <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+        <div class="space-y-2 max-w-4xl">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              ${node.status}
+            </span>
+            <span class="text-[10px] font-mono text-slate-400 font-bold flex items-center gap-1">
+              <i data-lucide="presentation" class="w-3.5 h-3.5"></i> ${node.venue}
+            </span>
+          </div>
+          <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white leading-snug">
+            ${node.paper}
+          </h2>
+          <p class="text-[11px] text-slate-400">
+            <b>作者：</b>${node.authors.join(', ')} &nbsp;•&nbsp; <b>年份：</b>${node.year}
+          </p>
+        </div>
+
+        <div class="flex flex-wrap md:flex-col lg:flex-row gap-2 shrink-0">
+          <a href="${node.link}" target="_blank" class="px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black border border-white/5 text-[10px] font-bold text-slate-300 hover:text-white transition flex items-center gap-1">
+            <i data-lucide="external-link" class="w-3 h-3 text-emerald-400"></i> arXiv 论文
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. 更新 Tab 按钮状态高亮
+  document.querySelectorAll('.semantic-tab-btn').forEach(btn => {
+    btn.className = 'semantic-tab-btn px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 border border-transparent';
+  });
+  const activeTabBtn = document.getElementById(`semantic-tab-btn-${currentSemanticTab}`);
+  if (activeTabBtn) {
+    activeTabBtn.className = 'semantic-tab-btn px-4 py-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 transition flex items-center gap-1.5 font-bold';
+  }
+
+  // 3. 渲染 Tab Viewport
+  const viewport = document.getElementById('semantic-content-viewport');
+  if (!viewport) return;
+
+  if (currentSemanticTab === 'abstract') {
+    viewport.innerHTML = `
+      <div class="animate-fadeIn space-y-6">
+        <div class="glass-panel rounded-2xl p-5 border border-white/5 relative overflow-hidden space-y-4 bg-slate-950/20">
+          <div class="absolute -top-3 -left-3 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+          <div class="flex items-center gap-2 border-b border-white/5 pb-3">
+            <i data-lucide="compass" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">学术故事脉络与研究核心 (Storyline)</span>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 痛点 -->
+            <div class="bg-rose-500/5 border border-rose-500/10 p-4 rounded-xl hover:border-rose-500/20 transition duration-300">
+              <div class="flex items-center gap-1.5 text-rose-400 font-bold text-xs mb-1.5">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> 🔴 之前痛点与瓶颈 (Pain Point)
+              </div>
+              <p class="text-[11px] text-slate-300 leading-relaxed text-justify">${node.pain_point}</p>
+            </div>
+            
+            <!-- 思路与突破 -->
+            <div class="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl hover:border-emerald-500/20 transition duration-300">
+              <div class="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-1.5">
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 💡 核心设计与突破 (Core Breakthrough)
+              </div>
+              <p class="text-[11px] text-slate-300 leading-relaxed text-justify">${node.breakthrough}</p>
+            </div>
+          </div>
+
+          <!-- 关联与后续 -->
+          <div class="bg-indigo-500/5 border border-indigo-500/10 p-4 rounded-xl hover:border-indigo-500/20 transition duration-300">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs mb-1.5">
+              <i data-lucide="git-branch" class="w-3.5 h-3.5"></i> 🔗 与主流形演进及后续影响的关系 (Impact & Evolution)
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed text-justify">${node.cross_relation}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (currentSemanticTab === 'math') {
+    viewport.innerHTML = `
+      <div class="animate-fadeIn space-y-6">
+        <div class="glass-panel rounded-2xl p-5 border border-white/5 relative overflow-hidden space-y-4 bg-slate-950/20">
+          <div class="absolute -top-3 -right-3 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+          <div class="flex items-center gap-2 border-b border-white/5 pb-3">
+            <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">数学公式推导与物理机制分析 (Mathematics & Physics)</span>
+          </div>
+          <div class="space-y-4">
+            ${node.formula}
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (currentSemanticTab === 'tips') {
+    const tipsHTML = node.tips.map((tip, idx) => `
+      <div class="bg-black/25 border border-white/5 p-4 rounded-xl hover:border-emerald-500/30 hover:bg-slate-900/40 transition duration-300">
+        <div class="flex items-start gap-2.5">
+          <span class="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-mono font-bold text-xs border border-emerald-500/20 shrink-0">
+            ${idx + 1}
+          </span>
+          <div class="text-[11px] text-slate-300 leading-relaxed space-y-1">
+            ${tip}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    viewport.innerHTML = `
+      <div class="animate-fadeIn space-y-6">
+        <div class="glass-panel rounded-2xl p-5 border border-white/5 relative overflow-hidden space-y-4 bg-slate-950/20">
+          <div class="absolute -top-3 -right-3 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+          <div class="flex items-center gap-2 border-b border-white/5 pb-3">
+            <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">组会汇报讲解锦囊 / Presentation Master Tips</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${tipsHTML}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 重新渲染公式和图标
+  if (typeof renderMath === 'function') {
+    renderMath();
   }
   lucide.createIcons();
 }

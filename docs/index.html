@@ -86,10 +86,13 @@
         </div>
         <div class="flex flex-wrap md:flex-col lg:flex-row items-center gap-3 shrink-0">
           <a href="#timeline-section" class="px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
-            <i data-lucide="git-branch" class="w-4 h-4"></i> 演进路线图
+            <i data-lucide="git-branch" class="w-4 h-4"></i> 核心算法演进
+          </a>
+          <a href="#semantic-section" class="px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+            <i data-lucide="sparkles" class="w-4 h-4 text-emerald-200"></i> 语义引导演进
           </a>
           <a href="#benchmark-section" class="px-5 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 font-bold text-sm border border-white/5 transition flex items-center justify-center gap-2">
-            <i data-lucide="line-chart" class="w-4 h-4"></i> 我的 HPO 横向评测
+            <i data-lucide="line-chart" class="w-4 h-4"></i> HPO 横向评测
           </a>
           <button id="theme-toggle" onclick="toggleTheme()" class="p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/5 text-slate-300 hover:text-white transition flex items-center justify-center" title="切换主题">
             <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
@@ -176,7 +179,7 @@
       </div>
     </section>
 
-    <!-- 🎮 组会硬核炸点：轨迹微仿真沙盒 -->
+    <!-- 🎮 组会互动模块：轨迹微仿真沙盒 -->
     <section id="sandbox-section" class="glass-panel rounded-2xl p-6 md:p-8 relative overflow-hidden">
       <div class="absolute top-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
       
@@ -359,6 +362,66 @@
 
 
     <!-- ======================================================= -->
+    <!-- 🟢 BLOCK 2.5: 多模态之桥：语义引导演进大图景 -->
+    <!-- ======================================================= -->
+    <div id="block-semantic" class="space-y-20 pt-4">
+      <section id="semantic-section" class="space-y-6 pt-4">
+        <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div>
+            <h2 class="text-2xl font-extrabold text-white flex items-center gap-2.5">
+              <i data-lucide="sparkles" class="w-7 h-7 text-emerald-400 animate-pulse"></i> 多模态之桥：语义引导演进大图景
+            </h2>
+            <p class="text-sm text-slate-400 mt-1">从早期外挂分类器、梯度投影到无噪流形，到 Classifier-Free Guidance，再到跨注意力解耦以及现代多模态大一统 Transformer 的演进图谱。</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <!-- Left Column (Col 1-4): Interactive Semantic Timeline Navigation -->
+          <div class="lg:col-span-4 space-y-4">
+            <div class="glass-panel rounded-2xl p-4 border border-white/5 space-y-3">
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between px-1">
+                <span>语义引导分支路线</span>
+                <span class="text-emerald-400 font-mono">2021 - 2026</span>
+              </div>
+              
+              <!-- Vertical Chronology Navigation List -->
+              <div class="relative space-y-2.5" id="sidebar-semantic-nav">
+                <!-- Dynamically populated by app.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column (Col 5-12): Deep Dive Details Card -->
+          <div class="lg:col-span-8 space-y-4">
+            <!-- Active Paper Header Card -->
+            <div id="semantic-paper-header" class="glass-panel rounded-2xl p-6 relative overflow-hidden border border-emerald-500/20 bg-emerald-500/5">
+              <!-- Dynamically populated by app.js -->
+            </div>
+
+            <!-- Academic Slide Deck Tabs -->
+            <div class="flex flex-wrap bg-slate-950/80 p-1 rounded-xl border border-white/5 text-xs font-bold font-sans gap-1 shrink-0" id="semantic-tabs">
+              <button onclick="switchSemanticTab('abstract')" id="semantic-tab-btn-abstract" class="semantic-tab-btn px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+                <i data-lucide="file-text" class="w-4 h-4"></i> 📄 论文精读与贡献
+              </button>
+              <button onclick="switchSemanticTab('math')" id="semantic-tab-btn-math" class="semantic-tab-btn px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+                <i data-lucide="calculator" class="w-4 h-4"></i> 🧮 数学推导与物理机制
+              </button>
+              <button onclick="switchSemanticTab('tips')" id="semantic-tab-btn-tips" class="semantic-tab-btn px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4"></i> 💡 组会汇报讲解锦囊
+              </button>
+            </div>
+
+            <!-- Academic Slide Deck Viewport -->
+            <div id="semantic-content-viewport" class="min-h-[380px]">
+              <!-- Dynamically populated by app.js -->
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+    <!-- ======================================================= -->
     <!-- 🟣 BLOCK 3: 我的实验 (实验设计与 HPO 极限实证) -->
     <!-- ======================================================= -->
     <div id="block-my-experiments" class="space-y-20">
@@ -376,12 +439,12 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- 📘 板块一：我的硬核实验物理设置与 HPO 贝叶斯搜索空间 -->
+      <!-- 📘 板块一：我的实验物理设置与 HPO 贝叶斯搜索空间 -->
       <!-- ========================================== -->
       <div class="glass-panel rounded-2xl p-6 border border-white/5 space-y-6">
         <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-3">
           <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded text-xs font-mono font-bold">Part 1</span>
-          我的硬核实验物理设置与 HPO 贝叶斯搜索空间 (My Experimental Settings)
+          我的实验物理设置与 HPO 贝叶斯搜索空间 (My Experimental Settings)
         </h3>
         
         <div class="space-y-6">
@@ -916,7 +979,11 @@
       </div>
     </section>
 
-    <!-- 🪐 PART 4: 高维真实验证 -->
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- 🌌 BLOCK 4: HIGH-DIMENSIONAL REAL IMAGES (高维图像 CIFAR-10 真实评测) -->
+    <!-- ======================================================= -->
     <section id="block-high-dim" class="space-y-8 pt-12 border-t border-white/10">
       
       <!-- 🪐 模块标题头 -->
@@ -935,6 +1002,15 @@
         </div>
       </div>
 
+      <div class="p-4 bg-slate-950/60 rounded-xl border border-cyan-500/15 text-xs text-slate-300 leading-relaxed space-y-2">
+        <p>
+          <b class="text-cyan-300">阶段说明：</b>原始高维实验计划只包含 <b>Avg-DDIM-HNSW</b> 这一种适配：用加噪点 $x_t$ 在原始图像库中做近邻检索，作为 2D 局域候选机制的第一版高维外推。
+        </p>
+        <p>
+          单次 CIFAR-10 子集实验显示，HNSW 版本相比 DDIM baseline 出现退化。后续的 <b>Bucket-IS</b> 不是原始计划的一部分，而是在分析 HNSW 退化后提出的第二版修正：它针对“硬近邻提议分布有偏、缺少概率校正”这一具体问题，引入软分桶与重要性权重校正。因此这里的改动是由失败诊断驱动的机制修正，而不是简单地继续调参寻找更好结果。
+        </p>
+      </div>
+
       <!-- 💡 方法演进与痛点机制 (简朴版双侧对照) -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -943,7 +1019,7 @@
           <div class="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition"></div>
           <div class="flex items-center justify-between mb-4">
             <span class="px-3 py-1 text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full">高维适配 1.0 (HNSW KNN)</span>
-            <span class="text-rose-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> 性能退化 (-2.8%)</span>
+            <span class="text-rose-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> 单次实验退化 (-2.8%)</span>
           </div>
           <h3 class="text-lg font-bold text-white group-hover:text-rose-400 transition">HNSW 局域硬检索与有偏估计</h3>
           
@@ -956,7 +1032,7 @@
               <div class="flex justify-between"><span class="text-slate-500">估计数学性质:</span> <span class="text-rose-300 font-bold">有偏估计 (Biased)</span></div>
             </div>
             <p class="border-t border-white/5 pt-3">
-              虽然在该小样本 (Toy-Setting) 实测中，HNSW 选出的候选集 ESS 仍有 7.0 以上没有坍塌到 1，但其检索是完全依赖当前 $x_t$ 欧氏硬检索的提议，<b>没有进行提议概率偏差校正</b>，导致期望去噪目标的梯度估计存在严重的方向偏差，因而最终生成性能不升反降。
+              虽然在该小样本 (Toy-Setting) 实测中，HNSW 选出的候选集 ESS 仍有 7.0 以上，没有坍塌到 1，但其候选由当前 $x_t$ 的欧氏硬检索直接给出，<b>没有对提议分布进行概率偏差校正</b>。可能原因是：候选集合并不等价于目标后验邻域采样，导致期望去噪目标出现方向偏差，最终生成指标相对 baseline 退化。
             </p>
           </div>
         </div>
@@ -966,7 +1042,7 @@
           <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition"></div>
           <div class="flex items-center justify-between mb-4">
             <span class="px-3 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">高维适配 2.0 (Bucket-IS)</span>
-            <span class="text-emerald-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 性能改善 (+13.9%)</span>
+            <span class="text-emerald-400 font-mono text-xs flex items-center gap-1"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 单次实验改善 (+13.9%)</span>
           </div>
           <h3 class="text-lg font-bold text-white group-hover:text-emerald-400 transition">软分桶重要性采样 (Bucket-IS)</h3>
           
@@ -976,10 +1052,10 @@
             </p>
             <div class="bg-black/40 p-3 rounded-lg border border-white/5 space-y-1.5 font-mono text-[11px] text-slate-300">
               <div class="flex justify-between"><span class="text-slate-500">有效样本大小 (ESS):</span> <span class="text-emerald-300">7.65 (保持健康)</span></div>
-              <div class="flex justify-between"><span class="text-slate-500">估计数学性质:</span> <span class="text-emerald-300 font-bold">无偏估计 (Unbiased)</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">估计数学性质:</span> <span class="text-emerald-300 font-bold">偏差校正估计 (Bias-corrected)</span></div>
             </div>
             <p class="border-t border-white/5 pt-3">
-              K-Means 桶提供了连续平滑的流形概率，训练时通过软似然进行重要性采样，最关键的是<b>配合自归一化重要性采样 (SNIS) 补正了提议分布偏差</b>，在数学上保证了去噪目标期望的<b>无偏性</b>，因而模型能够平稳且鲁棒地收敛，FID 大幅优化。
+              K-Means 桶提供了更平滑的候选提议分布，训练时通过软似然进行重要性采样，并配合自归一化重要性采样 (SNIS) 对提议分布偏差做校正。单次实验结果显示，该修正相对 HNSW 更稳定，相比 DDIM baseline 的 FID/KID 有所改善；该结论仍需更多 seed 与更大训练规模验证。
             </p>
           </div>
         </div>
@@ -1051,7 +1127,7 @@
               <!-- Avg-DDIM Bucket IS -->
               <tr class="bg-emerald-950/20 text-emerald-400 font-bold border-y-2 border-emerald-500/20 shadow-[0_0_12px_rgba(52,211,153,0.05)]">
                 <td class="p-3.5 text-left font-sans flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                  <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
                   Avg-DDIM-Bucket-IS
                 </td>
                 <td class="p-3.5 text-emerald-300">20,000</td>
@@ -1064,13 +1140,13 @@
                 <td class="p-3.5 text-emerald-200 text-sm font-extrabold">
                   0.0387 ★
                 </td>
-                <td class="p-3.5 text-emerald-300">7.65 <span class="text-[10px] text-emerald-400 font-normal">(无偏)</span></td>
+                <td class="p-3.5 text-emerald-300">7.65 <span class="text-[10px] text-emerald-400 font-normal">(偏差校正)</span></td>
                 <td class="p-3.5 text-emerald-300">3.98 GB</td>
                 <td class="p-3.5 text-emerald-300">2.43 h</td>
                 <td class="p-3.5 text-emerald-300">0.174 s</td>
                 <td class="p-3.5 text-emerald-300">+25.3%</td>
                 <td class="p-3.5 text-emerald-200 font-sans flex flex-col items-center">
-                  <span>提升 13.9%</span>
+                  <span>单次实验提升 13.9%</span>
                   <span class="text-[9px] font-normal text-emerald-400 font-mono">(FID 降低 9.07 点)</span>
                 </td>
               </tr>
@@ -1223,6 +1299,7 @@
   <!-- 引入 ChartJS 和解耦后的核心数据脚本 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="data/milestones.js"></script>
+  <script src="data/semantic_milestones.js"></script>
   <script src="data/hpo_results.js"></script>
   <script src="data/hpo_history.js"></script>
   <script src="data/visual_replay_data.js"></script>

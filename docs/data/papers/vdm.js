@@ -23,7 +23,7 @@ const vdmDeepDive = {
     painPoint: "2021年前，扩散模型（如DDPM）虽生成质量佳，但在精确似然估计（Likelihood）和密度估计上被自回归模型和层级 VAE 压制。学界普遍认为扩散模型仅是视觉刷榜器，难以用作严谨概率密度模型。",
     coreIdea: "利用信噪比（SNR）参数化扩散，将扩散写成连续时间层级潜在变量模型。论文证明了连续时间变分下界（VLB）的积分值对中间的加噪轨迹（Noise Schedule）形状不敏感，只依赖信噪比的首尾端点固定值。",
     howItSolved: "1. **SNR 统一公式**：用 $SNR(t) = \\alpha_t^2/\\sigma_t^2$ 极简地统一扩散公式变量。<br>2. **可学习噪声调度**：设计参数网络 $\\gamma_\\eta(t)$ 联合优化加噪轨迹。<br>3. **傅里叶特征**：对输入高频编码，捕获微小像素密度差异。<br>4. **连续 VLB 估计**：基于连续时间积分的蒙特卡洛估计，平抑离散梯度数值震荡。",
-    performance: "密度估计榜单超越长期垄断 of 自回归模型，取得 CIFAR-10 上当时 SOTA 的 2.49 BPD。证明扩散模型在似然估计能力上同属统治级，并开辟了基于 bits-back 编码无损压缩的新应用。"
+    performance: "密度估计榜单超越长期占优的自回归模型，取得 CIFAR-10 上当时 SOTA 的 2.49 BPD。证明扩散模型同样具备较强的似然估计能力，并开辟了基于 bits-back 编码无损压缩的新应用。"
   },
 
   abstractZh: [
@@ -182,7 +182,7 @@ const vdmDeepDive = {
         ["NFE = 5 (极限少步)", "3.12", "0.021500", "连续时间积分退化，大步长导致 BPD 指标偏折"],
         ["NFE = 1 (单步生图)", "4.80", "0.291240", "无蒸馏单步不可行，输出呈局部毛糙高斯状"]
       ],
-      note: "实验证明：可学习噪声调度（Learned SNR Schedule）配合 Fourier 编码不仅让 BPD bits-per-dimension 达到当时顶级水平，在物理空间点云的倒角距离上也展现了惊人的细节复现精度，在等算力下，其比普通固定 Linear-schedule DDPM 平均降低了约 5% 的 Chamfer Distance 误差！"
+      note: "实验显示：可学习噪声调度（Learned SNR Schedule）配合 Fourier 编码不仅让 BPD bits-per-dimension 达到当时较高水平，在物理空间点云的倒角距离上也展现了较好的细节复现能力；在等算力下，其比普通固定 Linear-schedule DDPM 平均降低了约 5% 的 Chamfer Distance 误差。"
     }
   ],
   

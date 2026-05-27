@@ -184,9 +184,9 @@ const consistencyDeepDive = {
 
   myVisualizations: {
     curvesImage: "assets/papers/consistency_models/my_convergence_curves.png",
-    curvesCaption: "<b>训练 Loss 与 CD 变化曲线</b>：左侧展示了蒸馏对齐 Loss。右侧 Chamfer Distance 收敛历史揭示了一致性模型最震撼、最独特的灵魂特性：<b>它的性能在 NFE=1 下竟然是最好的（CD = 0.089）</b>，甚至远好于多步（NFE=100 会因为多步级联一致性映射发生严重的累积偏移崩溃，高达 CD=0.37）！",
+    curvesCaption: "<b>训练 Loss 与 CD 变化曲线</b>：左侧展示了蒸馏对齐 Loss。右侧 Chamfer Distance 收敛历史显示，一致性模型在 NFE=1 下取得最佳结果（CD = 0.089），明显优于多步级联设置；NFE=100 可能因为反复级联一致性映射产生累积偏移，CD 升高至 0.37。",
     generationImage: "assets/papers/consistency_models/my_generation_overview.png",
-    generationCaption: "<b>2D 海螺一维窄流形：Consistency Models 点云生成对比</b>。本轮 HPO 优化的最终成果。惊人的“步数反转”：NFE=1 时，海螺双螺旋骨架极其规整、极速秒出；而随着 NFE 增大（如 20、100），由于强行对不具备多步常微分性质的一致性投影进行连续级联，粒子发生毁灭性的轨迹漂移散开，真实展现了一致性模型的物理本质。",
+    generationCaption: "<b>2D 海螺一维窄流形：Consistency Models 点云生成对比</b>。本轮 HPO 优化结果显示出“步数反转”现象：NFE=1 时，海螺双螺旋骨架较规整；而随着 NFE 增大（如 20、100），由于对不具备多步常微分性质的一致性投影进行连续级联，粒子出现明显轨迹漂移。",
     animationGif: "",
     animationCaption: "<b>Consistency Models 一致性极速采样轨迹演进动画</b>。粒子表现出极强的“一步瞬移”物理视觉！不同于 DDPM/DDIM 的长链累加，一致性模型的粒子几乎是在一瞬间、两步内就以最大的向心物理斜率，直接大跨步闪现投影到了 2D 海螺螺旋窄流形的法向表面，生动重现了单步自洽投影的极速法则。"
   },
@@ -197,11 +197,11 @@ const consistencyDeepDive = {
       columns: ["推理步数 (NFE)", "未蒸馏普通 DDIM (CD ↓)", "V-prediction 蒸馏后 (CD ↓)", "Consistency Distillation (CD ↓)"],
       rows: [
         ["NFE = 100 (多步自洽)", "0.008224", "0.005112", "0.004450 ★ (多步自洽采样：LPIPS 约束自发平滑微量残差)"],
-        ["NFE = 20 (常规少步)", "0.009754", "0.006240", "0.004812 ★ (超越所有算法，少步下自洽一致性优势尽显)"],
-        ["NFE = 5 (极限少步)", "0.022651", "0.008125", "0.006880 ★ (展现了无与伦比的一致性投影精度)"],
+        ["NFE = 20 (常规少步)", "0.009754", "0.006240", "0.004812 ★ (当前设置下取得最低 CD，体现自洽一致性优势)"],
+        ["NFE = 5 (极限少步)", "0.022651", "0.008125", "0.006880 ★ (一致性投影精度较高)"],
         ["NFE = 1 (极限单步)", "0.288564", "0.021100", "0.012400 ★ (CD 单步生图：以 1-NFE 打平普通模型多步性能)"]
       ],
-      note: "核心实验洞察：等效算力卡死前提下，自洽模型在极速少步（NFE=1/2）上展现了降维打击级别的绝对统治力！在 1-NFE 极限单步大考下，未蒸馏模型完全坍缩（CD>0.28），V-prediction 蒸馏 student 在 40.81G 算力下优化至 0.021100；而一致性蒸馏（CD）仅仅凭借 1 步，就取得了极其惊人的 0.012400 倒角距离！这一数值几乎打平了未蒸馏 DDIM 跑 20 步中点积分的成绩，以最硬核的数据宣告了自洽投影理论的伟大实践胜利。"
+      note: "核心实验洞察：在等效算力约束下，自洽模型在少步（NFE=1/2）设置上表现突出。1-NFE 单步设置下，未蒸馏模型出现明显退化（CD>0.28），V-prediction 蒸馏 student 在 40.81G 算力下优化至 0.021100；一致性蒸馏（CD）仅凭 1 步取得 0.012400 倒角距离，接近未蒸馏 DDIM 20 步中点积分的结果，说明自洽投影在单步生成中具有明显优势。"
     }
   ],
   
@@ -209,7 +209,7 @@ const consistencyDeepDive = {
     {
       key: "consistency_projection",
       title: "1-NFE 自洽模型投影生成轨迹",
-      caption: "一致性投影点云粒子在 NFE=1 下的单前向生图极限效果。可以看到，点云死死收纳在海螺线上，表现出惊人的紧凑度，彻底解决了单步崩溃退化的问题。",
+      caption: "一致性投影点云粒子在 NFE=1 下的单前向生成效果。可以看到，点云较紧凑地落在海螺线附近，显著缓解了普通扩散模型在单步设置下的退化问题。",
       src: "assets/papers/consistency/figures/ct_samples_panel.png"
     }
   ],
@@ -222,7 +222,7 @@ const consistencyDeepDive = {
   ],
   
   presentationNotesZh: [
-    "汇报 Consistency Models 时的三大绝对重点：一是阐明其设计哲学变迁——摒弃慢速数值 ODE 积分，直接学习自洽投影函数，一步搞定生成；二是重点解构 skip connection 参数化施加 $\\mathbf{f}_\\theta(x, \\epsilon)=x$ 边界条件，这是保证网络不坍缩成常数平凡解的最核心数学纽带；三是展示在极速 NFE=1 和 2 下对 Progressive Distillation 甚至其他所有算法的降维打击性能。",
+    "汇报 Consistency Models 时的三个重点：一是阐明其设计哲学变迁——弱化慢速数值 ODE 积分，直接学习自洽投影函数；二是重点解构 skip connection 参数化施加 $\\mathbf{f}_\\theta(x, \\epsilon)=x$ 边界条件，这是保证网络不坍缩成常数平凡解的核心数学约束；三是展示其在 NFE=1 和 2 下相对 Progressive Distillation 等方法的优势。",
     "数学讲解大脉络：PF ODE母轨迹 -> 自洽投影定义 $f(x_t, t)=f(x_{t'}, t')$ -> 边界条件与 skip 参数化 -> CD 动量 EMA 损失。在讲述中，最好画一个多条噪声轨迹最终“殊途同归”聚焦于真实端点的示意图，能让听众瞬间折服。",
     "调参金律：在 HPO 横向极限调参中，自洽模型（CD/CT）对 EMA 滑动因子 $\\mu$ 和训练步网格数 $N$ 极其敏感。在 CT（自洽训练）路线中，如果固定 $N$，前期由于步长太密网络会发生局部发散，必须采用自适应动态调度——令 $N$ 随训练步 $k$ 呈对数单调递增，同时将 LR 控制在较温和的 $1.0 \\times 10^{-3}$ 附近并开启 Weight Decay = $10^{-4}$，以便粒子能够极其温顺、聚拢地投影到一维海螺窄流线上。"
   ]
