@@ -187,23 +187,9 @@ def sample_with_trace(algorithm, model, n_samples, device, trace_dir, seed=None)
     elif class_name == "ConsistencyModels":
         x = algorithm.sigma_max * torch.randn(n_samples, 2, device=device)
         record(x, algorithm.sigma_max, "initial_noise")
-        if algorithm.sample_steps <= 1:
-            t_T = torch.full((n_samples,), algorithm.sigma_max, device=device, dtype=torch.float32)
-            x = algorithm.get_consistency_output(model, x, t_T)
-            record(x, 0.0, "consistency_projection")
-        else:
-            steps = torch.linspace(algorithm.sigma_max, algorithm.epsilon, algorithm.sample_steps, device=device)
-            t_first = torch.full((n_samples,), steps[0], device=device, dtype=torch.float32)
-            x = algorithm.get_consistency_output(model, x, t_first)
-            record(x, float(steps[0].item()), "consistency_initial_projection")
-            for k in range(1, algorithm.sample_steps):
-                tau = steps[k]
-                t_val = torch.full((n_samples,), tau, device=device, dtype=torch.float32)
-                noise_scale = torch.sqrt(tau**2 - algorithm.epsilon**2)
-                x = x + noise_scale * torch.randn_like(x)
-                record(x, float(tau.item()), f"consistency_renoise_{k}")
-                x = algorithm.get_consistency_output(model, x, t_val)
-                record(x, float(tau.item()), f"consistency_projection_{k}")
+        t_T = torch.full((n_samples,), algorithm.sigma_max, device=device, dtype=torch.float32)
+        x = algorithm.get_consistency_output(model, x, t_T)
+        record(x, 0.0, "consistency_projection")
         x_t = x
 
     elif class_name == "MeanFlow":

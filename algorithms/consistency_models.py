@@ -154,43 +154,17 @@ class ConsistencyModels(BaseAlgorithm):
     @torch.no_grad()
     def sample(self, model: nn.Module, n_samples: int, device: torch.device) -> torch.Tensor:
         """
-        采样生成数据：
-        - 如果 sample_steps == 1：执行单步生成 (CM 的终极特性)
-        - 如果 sample_steps > 1：执行交替“加噪-一步去噪”的多步快速采样，展现更精细的分布拟合
+        采样生成数据。
+
+        当前实现采用 Flow Matching teacher 的 Consistency Distillation。训练分布是 teacher
+        ODE 轨迹上的相邻状态，而不是 EDM/Karras 风格的 x_0 + sigma * z 轨迹。因此这里固定
+        使用 1-step consistency projection，避免推理时反复额外加噪导致轨迹震荡和后期发散。
         """
         model.eval()
         
         # 1. 采样初始白噪声 x_T ~ N(0, sigma_max^2 I)，与训练端最大噪声尺度一致。
         x = self.sigma_max * torch.randn(n_samples, 2, device=device)
-        
-        if self.sample_steps <= 1:
-            # ----------------- 终极的一步直接生成 -----------------
-            t_T = torch.full((n_samples,), self.sigma_max, device=device, dtype=torch.float32)
-            # 经过一次 get_consistency_output 直接获得逼近 x_0 的解！
-            x_0 = self.get_consistency_output(model, x, t_T)
-            model.train()
-            return x_0
-        else:
-            # ----------------- 2 步至多步迭代式采样 -----------------
-            # 我们根据指定的 sample_steps 设定降序的时间步序列
-            steps = torch.linspace(self.sigma_max, self.epsilon, self.sample_steps, device=device)
-            
-            # 第一步：直接对初始白噪声做一次一致性投影，获得一个基准点
-            t_first = torch.full((n_samples,), steps[0], device=device, dtype=torch.float32)
-            x = self.get_consistency_output(model, x, t_first)
-            
-            # 随后交替进行 重新加噪 (退火) 和 一致性去噪
-            for k in range(1, self.sample_steps):
-                tau = steps[k]
-                t_val = torch.full((n_samples,), tau, device=device, dtype=torch.float32)
-                
-                # 采样并加入特定大小 of 噪声
-                z = torch.randn_like(x)
-                noise_scale = torch.sqrt(tau**2 - self.epsilon**2)
-                x = x + noise_scale * z
-                
-                # 再次执行一致性映射投影至 x_0
-                x = self.get_consistency_output(model, x, t_val)
-                
-            model.train()
-            return x
+        t_T = torch.full((n_samples,), self.sigma_max, device=device, dtype=torch.float32)
+        x_0 = self.get_consistency_output(model, x, t_T)
+        model.train()
+        return x_0

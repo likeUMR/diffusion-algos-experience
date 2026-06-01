@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument("--batch_log_interval", type=int, default=10, help="每隔多少 batch 写一次 loss，0 表示关闭 batch 级日志")
     parser.add_argument("--trace_every", type=int, default=50, help="每隔多少 epoch 保存一次完整采样轨迹，1 表示每个 epoch 都保存")
     parser.add_argument("--plot_every", type=int, default=50, help="每隔多少 epoch 评估并画图，1 表示每个 epoch 都评估")
+    parser.add_argument("--save_checkpoints", type=int, default=1, help="保存多少个普通 checkpoint；默认 1 表示保存最终权重")
     parser.add_argument("--all_checkpoints", action="store_true", help="保存每个 epoch 的可视化 checkpoint（非常占磁盘）")
     parser.add_argument("--force", action="store_true", help="即使检测到该算法/NFE 已完成，也重新运行")
     parser.add_argument("--fail_fast", action="store_true", help="任意组合失败后立即退出，而不是继续跑后续组合")
@@ -272,7 +273,7 @@ def run_one(args, config, replay_root, algorithm, nfe, run_seed):
     trainer.train(
         epochs=best_cfg["epochs"],
         plot_nodes=plot_nodes,
-        save_nodes=0,
+        save_nodes=max(0, int(args.save_checkpoints)),
     )
     write_json(status_path, {
         "status": "completed",
